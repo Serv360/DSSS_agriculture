@@ -11,7 +11,7 @@ The preview shows you a rendered HTML copy of the contents of the editor. Conseq
 library(ncdf4)
 
 # Open the netCDF file for reading
-nc <- nc_open("../data_copernicus-echantillon/test.nc")
+nc <- nc_open("data_copernicus-echantillon/test.nc")
 
 # Read the data from the variable
 print(nc)
