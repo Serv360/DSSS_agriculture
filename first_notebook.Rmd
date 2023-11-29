@@ -1,0 +1,90 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+```{r}
+# Load the ncdf4 package
+library(ncdf4)
+
+# Open the netCDF file for reading
+nc <- nc_open("../data_copernicus-echantillon/test.nc")
+
+# Read the data from the variable
+print(nc)
+```
+
+```{r}
+
+lon <- ncvar_get(nc, "lon")
+nlon <- dim(lon)
+print(nlon)
+head(lon)
+
+lat <- ncvar_get(nc, "lat")
+nlat <- dim(lat)
+print(nlat)
+```
+
+```{r}
+
+time <- ncvar_get(nc, "time")
+print(time)
+```
+
+```{r}
+tunits <- ncatt_get(nc, "time", "units")
+nt <- dim(time)
+nt
+```
+
+```{r}
+tunits
+```
+```{r}
+tmp_array <- ncvar_get(nc, "Temperature_Air_2m_Mean_24h")
+#tmp_array[tmp_array==fillvalue$value] <- NA
+print(tmp_array)
+```
+```{r}
+tmp_array[1,]
+```
+
+```{r}
+lat = rev(lat)
+```
+```{r}
+dim(tmp_array)
+dim(lat)
+dim(lon)
+```
+```{r}
+for (i in 1:dim(lon)) {
+  tmp_array[i,] = rev(tmp_array[i,])
+}
+```
+
+Pour voir les variables dans le workspace : ls() dans la console
+```{r}
+library(lattice)
+library(RColorBrewer)
+
+
+image(lon, lat, tmp_array, col=rev(brewer.pal(10, "RdBu")))
+```
+```{r}
+grid <- expand.grid(lon=lon, lat=lat)
+cutpts <- c(246,266,268,270,272,274,276,278,280,282,284,304)
+levelplot(tmp_array ~ lon * lat, data=grid, at=cutpts, cuts=12, pretty=T, 
+          col.regions=(rev(brewer.pal(11,"RdBu"))))
+```
+
+
+```{r}
+# Close the netCDF file
+nc_close(nc)
+```
+
