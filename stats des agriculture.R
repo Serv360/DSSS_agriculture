@@ -158,3 +158,60 @@ ggplot(ble_surf, aes(x = Années)) +
   labs(y = "Surface",
        color = "Variables") +
   theme(legend.position = "top")
+
+
+
+####################################
+### Choix des céréales à étudier ###
+####################################
+
+
+
+
+donnees_par_culture <- data_COP[,c("LIB_CODE","PROD_2021","SURF_2021")] %>%
+  na.omit() %>% 
+  group_by(LIB_CODE) %>%
+  summarise(PROD_2021 = sum(PROD_2021),
+            SURF_2021 = sum(SURF_2021)) %>% 
+  arrange(PROD_2021)
+
+
+## Sélection de 01 - Blé tendre d'hiver et épeautre
+## 15 - Maïs grain non irrigué
+## 14 - Maïs grain irrigué
+
+donnees_ble1 <- data_COP[data_COP$LIB_CODE %in% c("01 - Blé tendre d'hiver et épeautre"),]
+donnees_mais14 <- data_COP[data_COP$LIB_CODE %in% c("14 - Maïs grain irrigué"),]
+donnees_mais15 <- data_COP[data_COP$LIB_CODE %in% c("15 - Maïs grain non irrigué"),]
+
+production_ble1 <- colSums(na.omit(donnees_ble1[, c("PROD_2010", "PROD_2011", "PROD_2012", "PROD_2013", "PROD_2014", "PROD_2015", "PROD_2016", "PROD_2017", "PROD_2018", "PROD_2019", "PROD_2020", "PROD_2021", "PROD_2022")]))
+production_mais14 <- colSums(na.omit(donnees_mais14[, c("PROD_2010", "PROD_2011", "PROD_2012", "PROD_2013", "PROD_2014", "PROD_2015", "PROD_2016", "PROD_2017", "PROD_2018", "PROD_2019", "PROD_2020", "PROD_2021", "PROD_2022")]))
+production_mais15 <- colSums(na.omit(donnees_mais15[, c("PROD_2010", "PROD_2011", "PROD_2012", "PROD_2013", "PROD_2014", "PROD_2015", "PROD_2016", "PROD_2017", "PROD_2018", "PROD_2019", "PROD_2020", "PROD_2021", "PROD_2022")]))
+
+production <- data.frame(Années = annees, Production_ble_tendre_hiver= production_ble1, Production_mais_grain_irrigue = production_mais14, Production_mais_grain_non_irrigue = production_mais15)
+
+ggplot(production, aes(x = Années)) +
+  geom_line(aes(y = Production_ble_tendre_hiver, color = "BTH"), size = 1) +
+  geom_line(aes(y = Production_mais_grain_irrigue, color = "MGI"), size = 1) +
+  geom_line(aes(y = Production_mais_grain_non_irrigue, color = "MGNI"), size = 1) +
+  scale_color_manual(values = c("BTH" = "blue", "MGI" = "red", "MGNI" = "green"),
+                     labels = c("Blé TH", "Mais grain irrigué", "Mais grain non irrigué")) +
+  labs(y = "Production",
+       color = "Variables") +
+  theme(legend.position = "top") 
+
+surface_ble1 <- colSums(na.omit(donnees_ble1[, c("SURF_2010", "SURF_2011", "SURF_2012", "SURF_2013", "SURF_2014", "SURF_2015", "SURF_2016", "SURF_2017", "SURF_2018", "SURF_2019", "SURF_2020", "SURF_2021", "SURF_2022")]))
+surface_mais14 <- colSums(na.omit(donnees_mais14[, c("SURF_2010", "SURF_2011", "SURF_2012", "SURF_2013", "SURF_2014", "SURF_2015", "SURF_2016", "SURF_2017", "SURF_2018", "SURF_2019", "SURF_2020", "SURF_2021", "SURF_2022")]))
+surface_mais15 <- colSums(na.omit(donnees_mais15[, c("SURF_2010", "SURF_2011", "SURF_2012", "SURF_2013", "SURF_2014", "SURF_2015", "SURF_2016", "SURF_2017", "SURF_2018", "SURF_2019", "SURF_2020", "SURF_2021", "SURF_2022")]))
+
+surface <- data.frame(Années = annees, Surface_ble_tendre_hiver= surface_ble1, Surface_mais_grain_irrigue = surface_mais14, Surface_mais_grain_non_irrigue = surface_mais15)
+
+ggplot(surface, aes(x = Années)) +
+  geom_line(aes(y = Surface_ble_tendre_hiver, color = "BTH"), size = 1) +
+  geom_line(aes(y = Surface_mais_grain_irrigue, color = "MGI"), size = 1) +
+  geom_line(aes(y = Surface_mais_grain_non_irrigue, color = "MGNI"), size = 1) +
+  scale_color_manual(values = c("BTH" = "blue", "MGI" = "red", "MGNI" = "green"),
+                     labels = c("Blé TH", "Mais grain irrigué", "Mais grain non irrigué")) +
+  labs(y = "Surface",
+       color = "Variables") +
+  theme(legend.position = "top") 
