@@ -190,15 +190,6 @@ production_mais15 <- colSums(na.omit(donnees_mais15[, c("PROD_2010", "PROD_2011"
 
 production <- data.frame(Années = annees, Production_ble_tendre_hiver= production_ble1, Production_mais_grain_irrigue = production_mais14, Production_mais_grain_non_irrigue = production_mais15)
 
-ggplot(production, aes(x = Années)) +
-  geom_line(aes(y = Production_ble_tendre_hiver, color = "BTH"), size = 1) +
-  geom_line(aes(y = Production_mais_grain_irrigue, color = "MGI"), size = 1) +
-  geom_line(aes(y = Production_mais_grain_non_irrigue, color = "MGNI"), size = 1) +
-  scale_color_manual(values = c("BTH" = "blue", "MGI" = "red", "MGNI" = "green"),
-                     labels = c("Blé TH", "Mais grain irrigué", "Mais grain non irrigué")) +
-  labs(y = "Production",
-       color = "Variables") +
-  theme(legend.position = "top") 
 
 surface_ble1 <- colSums(na.omit(donnees_ble1[, c("SURF_2010", "SURF_2011", "SURF_2012", "SURF_2013", "SURF_2014", "SURF_2015", "SURF_2016", "SURF_2017", "SURF_2018", "SURF_2019", "SURF_2020", "SURF_2021", "SURF_2022")]))
 surface_mais14 <- colSums(na.omit(donnees_mais14[, c("SURF_2010", "SURF_2011", "SURF_2012", "SURF_2013", "SURF_2014", "SURF_2015", "SURF_2016", "SURF_2017", "SURF_2018", "SURF_2019", "SURF_2020", "SURF_2021", "SURF_2022")]))
@@ -206,12 +197,58 @@ surface_mais15 <- colSums(na.omit(donnees_mais15[, c("SURF_2010", "SURF_2011", "
 
 surface <- data.frame(Années = annees, Surface_ble_tendre_hiver= surface_ble1, Surface_mais_grain_irrigue = surface_mais14, Surface_mais_grain_non_irrigue = surface_mais15)
 
+
+
+# Première graphique - Production
+ggplot(production, aes(x = Années)) +
+  geom_line(aes(y = Production_ble_tendre_hiver, color = "BTH"), size = 1) +
+  geom_line(aes(y = Production_mais_grain_irrigue + Production_mais_grain_non_irrigue, color = "MG"), size = 1) +
+  scale_color_manual(values = c("BTH" = "blue", "MG" = "red"),
+                     labels = c("Blé TH", "Mais grain")) +
+  labs(y = "Production (quintal)",
+       color = "Variables") +
+  theme(legend.position = "top",
+        panel.background = element_rect(fill = "white"),
+        axis.line = element_line(color = "black"),
+        axis.title.y = element_text(margin = margin(r = 10))) +
+  scale_y_continuous(expand = expansion(add = c(0, 0)))
+
+# Deuxième graphique - Surface
 ggplot(surface, aes(x = Années)) +
   geom_line(aes(y = Surface_ble_tendre_hiver, color = "BTH"), size = 1) +
-  geom_line(aes(y = Surface_mais_grain_irrigue, color = "MGI"), size = 1) +
-  geom_line(aes(y = Surface_mais_grain_non_irrigue, color = "MGNI"), size = 1) +
-  scale_color_manual(values = c("BTH" = "blue", "MGI" = "red", "MGNI" = "green"),
-                     labels = c("Blé TH", "Mais grain irrigué", "Mais grain non irrigué")) +
-  labs(y = "Surface",
+  geom_line(aes(y = Surface_mais_grain_irrigue + Surface_mais_grain_non_irrigue, color = "MG"), size = 1) +
+  scale_color_manual(values = c("BTH" = "blue", "MG" = "red"),
+                     labels = c("Blé TH", "Mais grain")) +
+  labs(y = "Surface (ha)",
        color = "Variables") +
-  theme(legend.position = "top") 
+  theme(legend.position = "top",
+        panel.background = element_rect(fill = "white"),
+        axis.line = element_line(color = "black"),
+        axis.title.y = element_text(margin = margin(r = 10))) +
+  scale_y_continuous(expand = expansion(add = c(0, 0)))
+
+
+## Carte
+
+library(sf)
+
+rendements_ble_21 <- donnees_ble1 %>%
+  select(LIB_DEP, REND_2021)
+
+france <- st_read("C:/Users/marie/Downloads/departements-et-collectivites-doutre-mer-france@toursmetropole/georef-france-departement-millesime.shp")
+library(tidyverse)
+
+
+rendements_ble_21 <- donnees_ble1 %>%
+  mutate(dep_name_lo = tolower(sub(".* - ", "", LIB_DEP)))
+
+
+rendements_sf <- merge(france, rendements_ble_21, by.y = "dep_name_lo")
+
+ggplot() +
+  geom_sf(data = rendements_sf, aes(fill = REND_2021)) +
+  scale_fill_gradientn(colors = c("yellow", "brown"), na.value = "grey", guide = "legend", limits = c(0, NA)) +
+  theme_minimal() +
+  labs(title = "Rendements (en quintal/ha) du blé tendre d'hiver par département en 2021", fill = "Rendement") +
+  theme(plot.title = element_text(hjust = 0.5))  +
+  coord_sf(xlim = c(-5, 9), ylim = c(41, 51))
