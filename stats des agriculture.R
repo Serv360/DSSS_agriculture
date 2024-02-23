@@ -6,6 +6,8 @@ library(readr)
 library(reshape2)
 library(tibble)
 library(ggdist)
+library(sf)
+library(tidyverse)
 
 
 data_COP <- read_excel("D:/Cours/ENSAE/Projet DSSS/Data/SAA_2010-2022_provisoires_donnees_departementales-v2.xlsx", 
@@ -181,8 +183,17 @@ donnees_par_culture <- data_COP[,c("LIB_CODE","PROD_2021","SURF_2021")] %>%
 ## 14 - Maïs grain irrigué
 
 donnees_ble1 <- data_COP[data_COP$LIB_CODE %in% c("01 - Blé tendre d'hiver et épeautre"),]
+donnees_ble1[is.na(donnees_ble1)] <- 0
+
 donnees_mais14 <- data_COP[data_COP$LIB_CODE %in% c("14 - Maïs grain irrigué"),]
+donnees_mais14[is.na(donnees_mais14)] <- 0
+
 donnees_mais15 <- data_COP[data_COP$LIB_CODE %in% c("15 - Maïs grain non irrigué"),]
+donnees_mais15[is.na(donnees_mais15)] <- 0
+
+donnees_mais1415 <- data_COP[data_COP$LIB_CODE %in% c("14 - Maïs grain irrigué","15 - Maïs grain non irrigué"),]
+donnees_mais1415[is.na(donnees_mais1415)] <- 0
+
 
 production_ble1 <- colSums(na.omit(donnees_ble1[, c("PROD_2010", "PROD_2011", "PROD_2012", "PROD_2013", "PROD_2014", "PROD_2015", "PROD_2016", "PROD_2017", "PROD_2018", "PROD_2019", "PROD_2020", "PROD_2021", "PROD_2022")]))
 production_mais14 <- colSums(na.omit(donnees_mais14[, c("PROD_2010", "PROD_2011", "PROD_2012", "PROD_2013", "PROD_2014", "PROD_2015", "PROD_2016", "PROD_2017", "PROD_2018", "PROD_2019", "PROD_2020", "PROD_2021", "PROD_2022")]))
@@ -197,58 +208,129 @@ surface_mais15 <- colSums(na.omit(donnees_mais15[, c("SURF_2010", "SURF_2011", "
 
 surface <- data.frame(Années = annees, Surface_ble_tendre_hiver= surface_ble1, Surface_mais_grain_irrigue = surface_mais14, Surface_mais_grain_non_irrigue = surface_mais15)
 
+combined_data <- merge(production, surface, by = "Années", suffixes = c("_prod", "_surf"))
 
-
-# Première graphique - Production
-ggplot(production, aes(x = Années)) +
-  geom_line(aes(y = Production_ble_tendre_hiver, color = "BTH"), size = 1) +
-  geom_line(aes(y = Production_mais_grain_irrigue + Production_mais_grain_non_irrigue, color = "MG"), size = 1) +
-  scale_color_manual(values = c("BTH" = "blue", "MG" = "red"),
-                     labels = c("Blé TH", "Mais grain")) +
-  labs(y = "Production (quintal)",
-       color = "Variables") +
+# Tracer le graphique pour le blé
+ggplot(combined_data, aes(x = Années)) +
+  geom_line(aes(y = Production_ble_tendre_hiver / 100, linetype = "Production de blé tendre d'hiver"), color = "blue") +
+  geom_line(aes(y = Surface_ble_tendre_hiver, linetype = "Surface de blé tendre d'hiver"), color = "blue") +
+  scale_linetype_manual(values = c("solid", "dashed"),
+                        labels = c("Production de blé tendre d'hiver", "Surface de blé tendre d'hiver")) +
+  scale_y_continuous(name = "Production (quintaux)", expand = expansion(add = c(0, 0)), sec.axis = sec_axis(~ ., name = "Surface (ha)", breaks = seq(0, max(combined_data$Surface_ble_tendre_hiver), by = 50000000))) +
+  labs(title = "Production et surface de Blé tendre d'hiver (et épeautre) par année") +
+  theme_minimal() +
   theme(legend.position = "top",
         panel.background = element_rect(fill = "white"),
         axis.line = element_line(color = "black"),
-        axis.title.y = element_text(margin = margin(r = 10))) +
-  scale_y_continuous(expand = expansion(add = c(0, 0)))
+        axis.title.y.left = element_text(color = "blue"),
+        axis.title.y.right = element_text(color = "blue"),
+        axis.text.y.left = element_text(color = "blue"),
+        axis.text.y.right = element_text(color = "blue"),
+        axis.title.x = element_text(color = "black")) +
+  scale_x_continuous(expand = expansion(add = c(0, 0)))
 
-# Deuxième graphique - Surface
-ggplot(surface, aes(x = Années)) +
-  geom_line(aes(y = Surface_ble_tendre_hiver, color = "BTH"), size = 1) +
-  geom_line(aes(y = Surface_mais_grain_irrigue + Surface_mais_grain_non_irrigue, color = "MG"), size = 1) +
-  scale_color_manual(values = c("BTH" = "blue", "MG" = "red"),
-                     labels = c("Blé TH", "Mais grain")) +
-  labs(y = "Surface (ha)",
-       color = "Variables") +
+
+# Tracer le graphique pour le maïs
+ggplot(combined_data, aes(x = Années)) +
+  geom_line(aes(y = (Production_mais_grain_irrigue + Production_mais_grain_non_irrigue) / 100, linetype = "Production de maïs grain"), color = "red") +
+  geom_line(aes(y = Surface_mais_grain_irrigue + Surface_mais_grain_non_irrigue, linetype = "Surface de maïs grain"), color = "red") +
+  scale_linetype_manual(values = c("solid", "dashed"),
+                        labels = c("Production de maïs grain", "Surface de maïs grain")) +
+  scale_y_continuous(name = "Production (quintaux)", expand = expansion(add = c(0, 0)), sec.axis = sec_axis(~ ., name = "Surface (ha)", breaks = seq(0, max(combined_data$Surface_mais_grain_irrigue + combined_data$Surface_mais_grain_non_irrigue), by = 1000000))) +
+  labs(title = "Production et surface de Maïs grain par année") +
+  theme_minimal() +
   theme(legend.position = "top",
         panel.background = element_rect(fill = "white"),
         axis.line = element_line(color = "black"),
-        axis.title.y = element_text(margin = margin(r = 10))) +
-  scale_y_continuous(expand = expansion(add = c(0, 0)))
+        axis.title.y.left = element_text(color = "red"),
+        axis.title.y.right = element_text(color = "red"),
+        axis.text.y.left = element_text(color = "red"),
+        axis.text.y.right = element_text(color = "red"),
+        axis.title.x = element_text(color = "black")) +
+  scale_x_continuous(expand = expansion(add = c(0, 0)))
 
 
-## Carte
 
-library(sf)
+## Cartes
 
-rendements_ble_21 <- donnees_ble1 %>%
-  select(LIB_DEP, REND_2021)
+#BLE
+
+ble_21 <- donnees_ble1 %>%
+  select(LIB_DEP, PROD_2021, REND_2021)
 
 france <- st_read("C:/Users/marie/Downloads/departements-et-collectivites-doutre-mer-france@toursmetropole/georef-france-departement-millesime.shp")
-library(tidyverse)
 
 
-rendements_ble_21 <- donnees_ble1 %>%
+
+ble_21 <- donnees_ble1 %>%
   mutate(dep_name_lo = tolower(sub(".* - ", "", LIB_DEP)))
 
 
-rendements_sf <- merge(france, rendements_ble_21, by.y = "dep_name_lo")
+ble_sf <- merge(france, ble_21, by.y = "dep_name_lo")
+library(gridExtra)
 
-ggplot() +
-  geom_sf(data = rendements_sf, aes(fill = REND_2021)) +
-  scale_fill_gradientn(colors = c("yellow", "brown"), na.value = "grey", guide = "legend", limits = c(0, NA)) +
+library(ggplot2)
+
+# Carte pour la production
+production_map <- ggplot() +
+  geom_sf(data = ble_sf, aes(fill = PROD_2021)) +
+  scale_fill_gradientn(name = "Production en quintaux (100kg)", colors = c("yellow", "orange", "darkorange", "brown"), na.value = "grey", guide = "legend", limits = c(0, NA)) +
+  labs(title = "Production blé tendre d'hiver 2021") +
   theme_minimal() +
-  labs(title = "Rendements (en quintal/ha) du blé tendre d'hiver par département en 2021", fill = "Rendement") +
-  theme(plot.title = element_text(hjust = 0.5))  +
+  theme(plot.title = element_text(hjust = 0.5)) +
   coord_sf(xlim = c(-5, 9), ylim = c(41, 51))
+
+# Carte pour le rendement
+rendement_map <- ggplot() +
+  geom_sf(data = ble_sf, aes(fill = REND_2021)) +
+  scale_fill_gradientn(name = "Rendement en quintaux/ha", colors = c("yellow", "orange", "darkorange", "brown"), na.value = "grey", guide = "legend", limits = c(0, NA)) +
+  labs(title = "Rendement BTH 2021") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  coord_sf(xlim = c(-5, 9), ylim = c(41, 51))
+
+grid.arrange(production_map, rendement_map, ncol = 2)
+
+ggsave(filename = "production_rendement_BTH.jpg", plot = last_plot(), width = 14, height = 7, units = "in", dpi = 300)
+
+#MAIS GRAIN
+
+
+
+mais_21 <- donnees_mais1415 %>%
+  select(LIB_DEP, PROD_2021, REND_2021)
+
+france <- st_read("C:/Users/marie/Downloads/departements-et-collectivites-doutre-mer-france@toursmetropole/georef-france-departement-millesime.shp")
+
+
+
+mais_21 <- donnees_mais1415 %>%
+  mutate(dep_name_lo = tolower(sub(".* - ", "", LIB_DEP)))
+
+
+mais_sf <- merge(france, mais_21, by.y = "dep_name_lo")
+library(gridExtra)
+
+library(ggplot2)
+
+# Carte pour la production
+production_map <- ggplot() +
+  geom_sf(data = mais_sf, aes(fill = PROD_2021)) +
+  scale_fill_gradientn(name = "Production en quintaux (100kg)", colors = c("yellow", "orange", "darkorange", "brown"), na.value = "grey", guide = "legend", limits = c(0, NA)) +
+  labs(title = "Production maïs grain 2021") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  coord_sf(xlim = c(-5, 9), ylim = c(41, 51))
+
+# Carte pour le rendement
+rendement_map <- ggplot() +
+  geom_sf(data = mais_sf, aes(fill = REND_2021)) +
+  scale_fill_gradientn(name = "Rendement en quintaux/ha", colors = c("yellow", "orange", "darkorange", "brown"), na.value = "grey", guide = "legend", limits = c(0, NA)) +
+  labs(title = "Rendement MG 2021") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  coord_sf(xlim = c(-5, 9), ylim = c(41, 51))
+
+grid.arrange(production_map, rendement_map, ncol = 2)
+ggsave(filename = "production_rendement_MG.jpg", plot = last_plot(), width = 14, height = 7, units = "in", dpi = 300)
+
