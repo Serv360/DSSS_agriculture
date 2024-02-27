@@ -293,6 +293,47 @@ grid.arrange(production_map, rendement_map, ncol = 2)
 
 ggsave(filename = "production_rendement_BTH.jpg", plot = last_plot(), width = 14, height = 7, units = "in", dpi = 300)
 
+
+
+
+ble_10 <- donnees_ble1 %>%
+  select(LIB_DEP, PROD_2010, REND_2010)
+
+
+ble_10 <- donnees_ble1 %>%
+  mutate(dep_name_lo = tolower(sub(".* - ", "", LIB_DEP)))
+
+
+ble_sf_10 <- merge(france, ble_10, by.y = "dep_name_lo")
+library(gridExtra)
+
+
+
+# Limite maximale commune pour les deux cartes
+max_rendement_ble <- max(max(ble_sf_10$REND_2010, na.rm = TRUE), max(ble_sf$REND_2021, na.rm = TRUE))
+
+# Carte pour le rendement 2010
+rendement_map10 <- ggplot() +
+  geom_sf(data = ble_sf_10, aes(fill = REND_2010)) +
+  scale_fill_gradientn(name = "Rendement en quintaux/ha", colors = c("yellow", "orange", "darkorange", "brown"), na.value = "grey", guide = "legend", limits = c(0, max_rendement_ble)) +
+  labs(title = "Rendement BTH 2010") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  coord_sf(xlim = c(-5, 9), ylim = c(41, 51))
+
+# Carte pour le rendement 2021
+rendement_map <- ggplot() +
+  geom_sf(data = ble_sf, aes(fill = REND_2021)) +
+  scale_fill_gradientn(name = "Rendement en quintaux/ha", colors = c("yellow", "orange", "darkorange", "brown"), na.value = "grey", guide = "legend", limits = c(0, max_rendement_ble)) +
+  labs(title = "Rendement BTH 2021") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  coord_sf(xlim = c(-5, 9), ylim = c(41, 51))
+
+# Affichage des deux cartes
+grid.arrange(rendement_map10, rendement_map, ncol = 2)
+
+
 #MAIS GRAIN
 
 
@@ -334,3 +375,39 @@ rendement_map <- ggplot() +
 grid.arrange(production_map, rendement_map, ncol = 2)
 ggsave(filename = "production_rendement_MG.jpg", plot = last_plot(), width = 14, height = 7, units = "in", dpi = 300)
 
+
+
+
+
+mais_10 <- donnees_mais1415 %>%
+  select(LIB_DEP, PROD_2010, REND_2010)
+
+
+mais_10 <- donnees_mais1415 %>%
+  mutate(dep_name_lo = tolower(sub(".* - ", "", LIB_DEP)))
+
+
+mais_sf_10 <- merge(france, mais_10, by.y = "dep_name_lo")
+
+# Limite maximale commune pour les deux cartes
+max_rendement <- max(max(mais_sf_10$REND_2010, na.rm = TRUE), max(mais_sf$REND_2021, na.rm = TRUE))
+
+# Carte pour le rendement 2010
+rendement_map10 <- ggplot() +
+  geom_sf(data = mais_sf_10, aes(fill = REND_2010)) +
+  scale_fill_gradientn(name = "Rendement en quintaux/ha", colors = c("yellow", "orange", "darkorange", "brown"), na.value = "grey", guide = "legend", limits = c(0, max_rendement)) +
+  labs(title = "Rendement MG 2010") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  coord_sf(xlim = c(-5, 9), ylim = c(41, 51))
+
+# Carte pour le rendement 2021
+rendement_map <- ggplot() +
+  geom_sf(data = mais_sf, aes(fill = REND_2021)) +
+  scale_fill_gradientn(name = "Rendement en quintaux/ha", colors = c("yellow", "orange", "darkorange", "brown"), na.value = "grey", guide = "legend", limits = c(0, max_rendement)) +
+  labs(title = "Rendement MG 2021") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  coord_sf(xlim = c(-5, 9), ylim = c(41, 51))
+
+grid.arrange(rendement_map10, rendement_map, ncol = 2)
