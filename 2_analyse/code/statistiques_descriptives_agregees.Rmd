@@ -1,0 +1,305 @@
+```{r}
+library(ggplot2)
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(readr)
+library(reshape2)
+library(tibble)
+library(ggdist)
+library(sf)
+library(tidyverse)
+library(cowplot)
+```
+
+
+
+```{r}
+chemin <- "C:/Users/Serv3/Desktop/DSSS project/data_merged/"
+
+base <- list()
+
+for (annee in 2017:2022) {
+  donnees_annee <- list()
+  for (region in c(11,24,27,28,32,44,52,53,75,76,84,93,94)) {
+    chemin_fichier <- paste0(chemin, "merged_tibble_", annee, "_", region, ".csv")
+    donnees_region <- read.csv(chemin_fichier, sep = ";")
+    
+    # Convertir les colonnes nécessaires en caractères si elles ne le sont pas déjà
+    colonnes_a_convertir <- c("Departement") # Ajoutez d'autres colonnes au besoin
+    for (colonne in colonnes_a_convertir) {
+      if (!is.character(donnees_region[[colonne]])) {
+        donnees_region[[colonne]] <- as.character(donnees_region[[colonne]])
+      }
+    }
+    
+    donnees_annee[[region]] <- donnees_region
+  }
+  
+  # Assemblage des données pour l'année donnée
+  donnees_assemblees <- do.call(rbind, donnees_annee)
+  base[[as.character(annee)]] <- donnees_assemblees
+}
+
+base <- as.data.frame(do.call(rbind, base))
+```
+
+```{r}
+print(base)
+```
+
+
+```{r}
+data_wheat <- base[base$Culture == "01 - Blé tendre d'hiver et épeautre",]
+ggplot(data_wheat, aes(x = factor(Annee), y = rend)) +
+  geom_boxplot(fill = "skyblue") +
+  geom_jitter(width = 0.2, alpha = 0.5, color = "red") +
+  labs(title = "Distribution des rendements du blé par année",
+       x = "Année",
+       y = "Rendement (tonnes par hectare)")
+```
+
+```{r}
+data_mais <- base[base$Culture == "14 - Maïs grain irrigué",]
+ggplot(data_mais, aes(x = factor(Annee), y = rend)) +
+  geom_boxplot(fill = "skyblue") +
+  geom_jitter(width = 0.2, alpha = 0.5, color = "red") +
+  labs(title = "Distribution des rendements du maïs par année",
+       x = "Année",
+       y = "Rendement (tonnes par hectare)")
+```
+
+```{r}
+base$temperature_moyenne24h <- lapply(strsplit(base$temperature_moyenne24h, ", "), as.numeric)
+base$precipitation_somme24h <- lapply(strsplit(base$precipitation_somme24h, ", "), as.numeric)
+base$radiation_somme24h <- lapply(strsplit(base$radiation_somme24h, ", "), as.numeric)
+```
+
+
+```{r}
+base$temperature_moyenne <- sapply(base$temperature_moyenne24h, function(x) {
+  if(length(x) > 0) {
+    mean(x, na.rm = TRUE)
+  } else {
+    NA
+  }
+})
+
+base$precipitation_somme <- sapply(base$precipitation_somme24h, function(x) {
+  if(length(x) > 0) {
+    sum(x, na.rm = TRUE)
+  } else {
+    NA
+  }
+})
+
+base$radiation_somme <- sapply(base$radiation_somme24h, function(x) {
+  if(length(x) > 0) {
+    sum(x, na.rm = TRUE)
+  } else {
+    NA
+  }
+})
+
+# Afficher le dataframe avec la nouvelle colonne de moyennes
+```
+
+```{r}
+head(base)
+```
+
+
+```{r}
+temp_moyenne_par_annee <- base %>%
+  group_by(Annee) %>%
+  summarize(temperature_moyenne_moyenne = mean(temperature_moyenne, na.rm=TRUE))
+
+# Afficher les températures moyennes par année
+print(temp_moyenne_par_annee)
+```
+
+```{r}
+precipitation_moyenne_par_annee <- base %>%
+  group_by(Annee) %>%
+  summarize(precipitation_somme_moyenne = mean(precipitation_somme, na.rm=TRUE))
+
+# Afficher les températures moyennes par année
+print(precipitation_moyenne_par_annee)
+```
+
+```{r}
+radiation_moyenne_par_annee <- base %>%
+  group_by(Annee) %>%
+  summarize(radiation_somme_moyenne = mean(radiation_somme, na.rm=TRUE))
+
+# Afficher les températures moyennes par année
+print(radiation_moyenne_par_annee)
+```
+
+
+```{r}
+data_wheat <- base[base$Culture == "01 - Blé tendre d'hiver et épeautre",]
+
+# Create a dataframe for storing temperature averages per year
+temp_data <- temp_moyenne_par_annee
+
+# Merge wheat data with temperature data
+data_wheat <- merge(data_wheat, temp_data, by = "Annee")
+
+# Create separate plots for yields and temperature averages
+p1 <- ggplot(data_wheat, aes(x = factor(Annee))) +
+  geom_boxplot(aes(y = rend), fill = "skyblue") +
+  geom_jitter(aes(y = rend), width = 0.2, alpha = 0.5, color = "red") +
+  scale_y_continuous(name = "Rendement (tonnes par hectare)", limits = c(0, 110)) +
+  labs(title = "Distribution des rendements du blé par année en France",
+       x = "Année")
+
+p2 <- ggplot(data_wheat, aes(x = factor(Annee), y = temperature_moyenne_moyenne)) +
+  geom_point(color = "blue", size = 3) +
+  scale_y_continuous(name = "Température moyenne (°C)") +
+  labs(title = "Température moyenne en France par année",
+       x = "Année")
+
+# Plot the two plots on top of each other
+plot_grid(p1, p2, nrow = 2, align = "v")
+```
+
+```{r}
+data_wheat <- base[base$Culture == "01 - Blé tendre d'hiver et épeautre",]
+
+# Create a dataframe for storing temperature averages per year
+prec_data <- precipitation_moyenne_par_annee
+
+# Merge wheat data with temperature data
+data_wheat <- merge(data_wheat, prec_data, by = "Annee")
+
+# Create separate plots for yields and temperature averages
+p1 <- ggplot(data_wheat, aes(x = factor(Annee))) +
+  geom_boxplot(aes(y = rend), fill = "skyblue") +
+  geom_jitter(aes(y = rend), width = 0.2, alpha = 0.5, color = "red") +
+  scale_y_continuous(name = "Rendement (tonnes par hectare)", limits = c(0, 110)) +
+  labs(title = "Distribution des rendements du blé par année en France",
+       x = "Année")
+
+p2 <- ggplot(data_wheat, aes(x = factor(Annee), y = precipitation_somme_moyenne)) +
+  geom_point(color = "blue", size = 3) +
+  scale_y_continuous(name = "Précipitation moyenne (mm)") +
+  labs(title = "Moyenne des sommes de précipitation sur les départements en France par année",
+       x = "Année")
+
+# Plot the two plots on top of each other
+plot_grid(p1, p2, nrow = 2, align = "v")
+```
+
+
+
+```{r}
+data_wheat <- base[base$Culture == "01 - Blé tendre d'hiver et épeautre",]
+
+# Create a dataframe for storing temperature averages per year
+radi_data <- radiation_moyenne_par_annee
+
+# Merge wheat data with temperature data
+data_wheat <- merge(data_wheat, radi_data, by = "Annee")
+
+# Create separate plots for yields and temperature averages
+p1 <- ggplot(data_wheat, aes(x = factor(Annee))) +
+  geom_boxplot(aes(y = rend), fill = "skyblue") +
+  geom_jitter(aes(y = rend), width = 0.2, alpha = 0.5, color = "red") +
+  scale_y_continuous(name = "Rendement (tonnes par hectare)", limits = c(0, 110)) +
+  labs(title = "Distribution des rendements du blé par année en France",
+       x = "Année")
+
+p2 <- ggplot(data_wheat, aes(x = factor(Annee), y = radiation_somme_moyenne)) +
+  geom_point(color = "blue", size = 3) +
+  scale_y_continuous(name = "Radiation moyenne (J/m)") +
+  labs(title = "Moyenne des sommes de radiations sur les départements en France par année",
+       x = "Année")
+
+# Plot the two plots on top of each other
+plot_grid(p1, p2, nrow = 2, align = "v")
+```
+
+
+```{r}
+data_mais <- base[base$Culture == "14 - Maïs grain irrigué",]
+
+# Create a dataframe for storing temperature averages per year
+temp_data <- temp_moyenne_par_annee
+
+# Merge wheat data with temperature data
+data_mais <- merge(data_mais, temp_data, by = "Annee")
+
+# Create separate plots for yields and temperature averages
+p1 <- ggplot(data_mais, aes(x = factor(Annee))) +
+  geom_boxplot(aes(y = rend), fill = "skyblue") +
+  geom_jitter(aes(y = rend), width = 0.2, alpha = 0.5, color = "red") +
+  scale_y_continuous(name = "Rendement (tonnes par hectare)", limits = c(0, 150)) +
+  labs(title = "Distribution des rendements du blé par année en France",
+       x = "Année")
+
+p2 <- ggplot(data_mais, aes(x = factor(Annee), y = temperature_moyenne_moyenne)) +
+  geom_point(color = "blue", size = 3) +
+  scale_y_continuous(name = "Température moyenne (°C)") +
+  labs(title = "Température moyenne en France par année",
+       x = "Année")
+
+# Plot the two plots on top of each other
+plot_grid(p1, p2, nrow = 2, align = "v")
+```
+
+```{r}
+data_mais <- base[base$Culture == "14 - Maïs grain irrigué",]
+
+# Create a dataframe for storing temperature averages per year
+prec_data <- precipitation_moyenne_par_annee
+
+# Merge wheat data with temperature data
+data_mais <- merge(data_mais, prec_data, by = "Annee")
+
+# Create separate plots for yields and temperature averages
+p1 <- ggplot(data_mais, aes(x = factor(Annee))) +
+  geom_boxplot(aes(y = rend), fill = "skyblue") +
+  geom_jitter(aes(y = rend), width = 0.2, alpha = 0.5, color = "red") +
+  scale_y_continuous(name = "Rendement (tonnes par hectare)", limits = c(0, 150)) +
+  labs(title = "Distribution des rendements du blé par année en France",
+       x = "Année")
+
+p2 <- ggplot(data_mais, aes(x = factor(Annee), y = precipitation_somme_moyenne)) +
+  geom_point(color = "blue", size = 3) +
+  scale_y_continuous(name = "Précipitation moyenne (mm)") +
+  labs(title = "Moyenne des sommes de précipitation sur les départements en France par année",
+       x = "Année")
+
+# Plot the two plots on top of each other
+plot_grid(p1, p2, nrow = 2, align = "v")
+```
+
+
+
+```{r}
+data_mais <- base[base$Culture == "14 - Maïs grain irrigué",]
+
+# Create a dataframe for storing temperature averages per year
+radi_data <- radiation_moyenne_par_annee
+
+# Merge wheat data with temperature data
+data_mais <- merge(data_mais, radi_data, by = "Annee")
+
+# Create separate plots for yields and temperature averages
+p1 <- ggplot(data_mais, aes(x = factor(Annee))) +
+  geom_boxplot(aes(y = rend), fill = "skyblue") +
+  geom_jitter(aes(y = rend), width = 0.2, alpha = 0.5, color = "red") +
+  scale_y_continuous(name = "Rendement (tonnes par hectare)", limits = c(0, 150)) +
+  labs(title = "Distribution des rendements du blé par année en France",
+       x = "Année")
+
+p2 <- ggplot(data_mais, aes(x = factor(Annee), y = radiation_somme_moyenne)) +
+  geom_point(color = "blue", size = 3) +
+  scale_y_continuous(name = "Radiation moyenne (J/m)") +
+  labs(title = "Moyenne des sommes de radiations sur les départements en France par année",
+       x = "Année")
+
+# Plot the two plots on top of each other
+plot_grid(p1, p2, nrow = 2, align = "v")
+```
