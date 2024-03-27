@@ -1,0 +1,17 @@
+Bases de données :
+- Statistique agricole annuelle 
+https://agreste.agriculture.gouv.fr/agreste-web/disaron/SAA-SeriesLongues/detail/
+- Registre parcellaire graphique (RPG) 
+https://geoservices.ign.fr/rpg
+- base AgERA5
+https://cds.climate.copernicus.eu/cdsapp#!/dataset/sis-agrometeorological-indicators?tab=overview
+
+Description générale :
+
+Les données dont nous disposons pour l'agriculture sont celles de la statistique agricole annuelle (SAA), disponibles sur le site du service statistique ministériel du ministère de l'Agriculture pour les séries 2010-2022.  Elles sont issues d'une synthèse de résultats d'enquêtes statistiques, d'informations rassemblées auprès des correspondants agricoles locaux et de données administratives. Elles nous fournissent en particulier les superficies, rendements et productions récoltées chaque année par type de culture et par département. En croisant ces données avec des données méteorologiques, nous espérons identifier l'effet du réchauffement climatique sur l'agriculture. 
+
+Les données du registre parcellaire graphique sont des données annuelles récoltées depuis 2007 par l'Agence de service et de paiement afin notamment de distribuer les aides agricoles européennes. Des jeux de données anonymisés sont disponibles en ligne pour les années 2007 à 2022. Sur l'ensemble du territoire métropolitain, sont recensés les parcelles et les îlots (groupes de parcelles présentant des caractéristiques similaires : utilisation des sols, type de culture...) en fonction des années. Pour chaque unité, sont disponibles sa géométrie, sa surface (en ha), ses coordonnées géographiques, sa culture principale et les éventuelles cultures intercalées entre deux moissons de la culture principale. 
+
+En ce qui concerne les données climatiques, nous utilisons la base AgERA5 du programme européen Copernicus qui fournit des données quotidiennes de température (moyenne journalière, $K$), de pluviométrie (hauteur journalière, $mm.m^{-2}$) et d'ensoleillement ($J.m^{-2}$) sur l'ensemble du territoire français métropolitain avec une précision de 10 km de côté, entre 1979 et aujourd'hui. Cette base est libre d'accès, téléchargeable par année. Ces données ont été étendues jusqu'à 2100 en s'appuyant sur les scénarios du GIEC RCP4.5 et RCP8.5.
+
+L'appariemment des données agricoles et météorologiques passe par l'utilisation du RPG. Grâce à celui-ci, nous localisons les parcelles de chaque culture et chaque département, et faisons la moyenne des variables climatiques sur ces zones.
