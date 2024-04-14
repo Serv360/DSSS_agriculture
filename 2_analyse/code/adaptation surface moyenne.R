@@ -16,11 +16,11 @@ library(tidyverse)
 setwd("C:/Users/Serv3/Desktop/DSSS project/DSSS agriculture/DSSS_agriculture")
 
 
-chemin <- "2_analyse/data/"
+chemin <- "2_analyse/data_adaptation/"
 
 base <- list()
 
-for (annee in c(2010, 2011, 2012, 2013, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022)) {
+for (annee in c(2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022)) {
   donnees_annee <- list()
   for (region in c(11,24,27,28,32,44,52,53,75,76,84,93,94)) {
     chemin_fichier <- paste0(chemin, "merged_tibble_", annee, "_", region, ".csv")
@@ -52,7 +52,40 @@ base <- as.data.frame(do.call(rbind, base))
 ##########
 ## Blé ##
 ##########
-base <-base %>%filter(Culture =="01 - Blé tendre d'hiver et épeautre")
+base <- base %>%filter(Culture =="01 - Blé tendre d'hiver et épeautre")
+
+aggr1 <- aggregate(Mean_surface_parcelles ~ Annee, data = base, FUN = mean)
+
+ggplot(aggr1, aes(x = Annee, y = Mean_surface_parcelles)) +
+  geom_point() +  # Add points
+  geom_line() +   # Connect points with lines
+  labs(x = "Years", y = "Values") +  # Set axis labels
+  ggtitle("Values over the Years") +  # Set plot title
+  theme_minimal()  # Apply minimal theme
+
+aggr2 <- aggregate(Variance_surface_parcelles ~ Annee, data = base, FUN = mean)
+
+ggplot(aggr2, aes(x = Annee, y = Variance_surface_parcelles)) +
+  geom_point() +  # Add points
+  geom_line() +   # Connect points with lines
+  labs(x = "Years", y = "Values") +  # Set axis labels
+  ggtitle("Values over the Years") +  # Set plot title
+  theme_minimal()  # Apply minimal theme
+
+
+aggr2 <- aggregate(cbind(Mean_surface_parcelles, Median_surface_parcelles) ~ Annee, data = base, FUN = mean)
+
+ggplot(aggr2) +
+  geom_line(aes(x = Annee, y = Mean_surface_parcelles, color="mean")) +  
+  geom_line(aes(x = Annee, y = Median_surface_parcelles, color="median")) +  
+  scale_color_manual(values = c("mean" = "red", "median"="blue")) +
+  labs(x = "Years", y = "Values") +  # Set axis labels
+  ggtitle("Values over the Years") +  # Set plot title
+  theme_minimal()  # Apply minimal theme
+
+### ======================================================================
+### ======================================================================
+
 
 calculer_max_periode <- function(ligne, debut, fin) {
   valeurs <- unlist(strsplit(ligne, ", "))
