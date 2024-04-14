@@ -483,7 +483,7 @@ variables_a_analyser <- c("radia_moy_janv",
                           "prec_moy_janv",       
                           "prec_moy_avril"                          
   )
-pdf("effets_partiels_ble.pdf")  # Ouvre un fichier PDF pour sauvegarder les graphiques
+pdf("3_plots/effets_partiels_ble.pdf")  # Ouvre un fichier PDF pour sauvegarder les graphiques
 
 par(mfrow = c(3, 4)) 
 
@@ -532,7 +532,7 @@ variables_a_analyser <-  c("radia_moy_janv",
                            "prec_moy_mars",       
                            "prec_moy_janv"                         
 )
-pdf("effets_partiels_ble_3ans.pdf")  # Ouvre un fichier PDF pour sauvegarder les graphiques
+pdf("3_plots/effets_partiels_ble_3ans.pdf")  # Ouvre un fichier PDF pour sauvegarder les graphiques
 
 par(mfrow = c(3, 4)) 
 
