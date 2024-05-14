@@ -1,0 +1,367 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{caption}
+\usepackage{footnote}
+\usepackage[letterpaper,top=1.5cm,bottom=2cm,left=2cm,right=2cm,marginparwidth=1.75cm]{geometry}
+\usepackage{url}
+\usepackage{chronology}
+\usepackage{tikz}
+\usetikzlibrary{positioning}
+\usepackage{changepage}
+\usepackage{booktabs}
+
+
+
+\title{Les effets du changement climatique sur les rendements du blé tendre d'hiver et de l'épeautre entre 2010 et 2022 en France}
+\author{Marie Cervoni et Loïc Thomas}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Notre étude exploite les variations météorologiques récentes en France métropolitaine pour identifier l'impact du changement climatique sur les cultures de blé tendre d'hiver et d'épeautre. Nous utilisons des forêts aléatoires pour modéliser les effets non linéaires des variables météorologiques sur les rendements des cultures. Notre analyse révèle que des mécanismes d'adaptation à long terme des cultures atténuent l'impact nocif du changement climatique sur les rendements. Nous mettons en évidence l'un de ces potentiels mécanismes en étudiant l'évolution des surfaces cultivées et de la taille des parcelles. L'identification et la quantification de ces mécanismes d'adaptation est au coeur des enjeux alimentaires et économiques de la transition écologique. 
+\end{abstract}
+
+\textit{Le code est disponible sur github à l'adresse suivante} : \url{https://github.com/Serv360/DSSS_agriculture}
+
+\section*{Remerciements}
+Nous remercions Roland Rathelot d'avoir suivi de près l'avancée de cette étude et de nous avoir guidés dans notre travail. Un grand merci également à Laurent Davezies et Yvaylo Petev pour l'encadrement du projet et à nos camarades de promotion pour leurs suggestions utiles.
+
+\newpage
+\section{Introduction}
+
+\paragraph{}En 2016, des conditions météorologiques défavorables, plus probables du fait du changement climatique, ont conduit à de fortes baisses de production en France dans la filière blé (-25\% par rapport aux cinq années précédentes). L'Île de France, particulièrement touchée, a vu son rendement baisser de 40\%.\footnote{\url{https://www.lemonde.fr/economie/article/2016/08/19/des-cerealiers-francais-en-grande-difficulte_4984748_3234.html}} Le changement climatique désigne des variations à long terme des températures et des modèles météorologiques. Les activités humaines émettrices de gaz à effet de serre en sont la cause principale. La température à la surface de la Terre est ainsi 1,1°C plus élevée aujourd'hui qu'elle ne l'était en 1900.\footnote{\url{https://www.un.org/fr/climatechange/what-is-climate-change}} Le GIEC (Groupe d'experts intergouvernemental sur l'évolution du climat) prévoyait dans son dernier rapport une poursuite de ce réchauffement climatique, atteignant 3,2 °C d'ici à 2100.\footnote{Rapport de synthèse du GIEC - 2023} %\\
+
+%\vspace{-0.4cm}
+L'agriculture est affectée par le réchauffement climatique qui engendre une augmentation de la fréquence et de l'intensité des événements météorologiques extrêmes (fortes chaleurs, sécheresses, précipitations intenses, etc). Ces événements nuisent au développement des végétaux et, selon le GIEC, 8 \% des terres agricoles actuelles deviendront inadaptées au climat d’ici 2100. Pourtant, les cultures sont la principale source d'alimentation de la population mondiale. Par ailleurs, elles sont une source essentielle de revenus pour environ 600 millions d'exploitations agricoles dans le monde.\footnote{GIEC Climate Change 2022: Impacts, Adaptation and Vulnerability}. L'adaptation des cultures au changement climatique représente donc à la fois un enjeu de sécurité alimentaire et un enjeu de sécurité économique. \\
+
+
+
+Les liens entre changement climatique et rendements agricoles sont sujets à de nombreuses études, comme celle de Burke et Emerick (2016) \cite{burke2016}. Ils y évaluent l'impact du changement climatique sur l'agriculture aux Etats-Unis entre 1950 et 2005 et l'atténuation de cet effet liée à l'adaptation des agriculteurs. Pour cela, ils s'intéressent aux rendements annuels du soja et du maïs, utilisent des données climatiques agrégées à l'échelle des \textit{counties} et comparent les résultats de modèles \textit{long difference} (variations des rendements à long terme) à ceux de modèles  \textit{Within} (variations des rendements à court terme), ce qui leur permet de mesurer l'effet de l'adaptation des pratiques agricoles au changement climatique. Ils montrent ainsi que, pour la culture du maïs, un seul jour à 30°C plutôt que 29°C réduit le rendement de 0,5 \%. C'est un effet net des adaptations mises en oeuvre par les agriculteurs, celles-ci ayant réduit de près de la moitié les effets de court terme d'une exposition des cultures aux fortes chaleurs. Cette prise en compte de l'adaptation dans les modèles à forme réduite, qui contrairement aux modèles d'évaluation intégrée, ne tiennent pas compte de la réponse des agents à l'évolution des températures et des rendements agricoles est primordiale (Auffhammer et Schlenker, 2014 \cite{auffhammer2014}). Roberts et Schlenker (2008) \cite{schlenker2008} font le choix d'une modélisation plus complexe pour étudier des phénomènes non linéaires. Ces deux études utilisent une même méthode d'agrégation des données par l'utilisation d'indicateurs statistiques (moyenne, etc.). %\\
+
+%\vspace{-0.4cm}
+En France, Ceglar et al. \cite{ceglar2016} utilisent des données similaires à l'échelle des départements métropolitains, et agrègent les variables météorologiques en moyennes ou sommes mensuelles. Pour chaque département, ils déterminent quelles variables climatiques et quelles variations de ces variables au cours d'une année ont un effet négatif majoritaire sur les rendements des cultures de maïs et de blé d'hiver. Cela leur permet finalement de regrouper les départements en cinq zones homogènes de ce point de vue. Licker et al. (2013) \cite{licker2013} utilisent quant à eux la méthode \textit{first difference} pour des données agrégées de la même manière en Picardie et dans la région de Rostov en Russie. Ils montrent, qu'en fonction de la région, ce sont des variables climatiques différentes qui ont un effet majoritaire sur les rendements du blé d'hiver : en Picardie, le blé est sensible aux températures minimales en été et en automne et aux précipitations tandis que dans la région de Rostov, il est sensible à toutes les variables climatiques au printemps et en début d'été. 
+
+Des études économétriques semblables ont été réalisées dans d'autres régions du monde, à différentes échelles : en Inde, à l'échelle du pays avec des relevés annuels sur 57 ans pour 7 cultures différentes (Guntukula, 2020 \cite{guntukula2020}), au Bangladesh à l'échelle du pays avec des relevés annuels pour le rendement et mensuels pour la température et les précipitations pour 3 types de riz (Md. Sarker, 2012 \cite{sarker2012}), en Chine et aux Etats-Unis, l'article de Li et al. 
+(2011) \cite{li2011} intègre des variables explicatives technologiques et économiques dans la régression.
+
+D'autres articles utilisent des méthodes différentes sur des données de même format : \textit{Panel Autoregressive Distributed Lag}, \textit{ARDL} pour estimer l'influence à long terme et à court terme du changement climatique dans la région de l'Himalaya en Inde sur des données de 1998 à 2019 (Choudhary et Gupta, 2023 \cite{choudhary2023}), une méthode de \textit{Machine Learning} appelée \textit{sequential multivariate adaptive regression splines} sur des données annuelles de 2010 à 2020 en Inde pour les céréales et les oléagineux (Jha, 2023 \cite{jha2023}). La flexibilité de ces méthodes est d'autant plus importante que les effets des variables météorologique sur l'agriculture sont non linéaires, comme souligné par Dell, Jones et Olken\cite{dell2014} dans leur passage en revue de la nouvelle littérature sur les liens entre variables climatiques et économiques.
+
+Une autre branche de la littérature montre enfin que l'effet du changement climatique sur l'agriculture ne se mesure pas seulement avec des variables météorologiques.  Auffhammer, Chen, Chen, Gao, Gong et Khanna (2024) \cite{chen2024} montrent ainsi que la pollution de l'air, en particulier l'ozone de surface (O3), est associée au déclin de la productivité totale des facteurs agricoles en Chine.
+\\
+
+Nous souhaitons contribuer à cette littérature que nous pensons déterminante, en nous concentrant sur les grandes cultures (céréales principalement), celles-ci représentant plus du tiers de la surface agricole métropolitaine\footnote{Recensement agricole de 2020}, et en utilisant différentes bases de données  (croisement du registre parcelle graphique et de données départementales sur les cultures céréalières, cf. plus bas). Nous choisissons d'étudier en partiulier le blé tendre d'hiver et l'épeautre qui représentaient plus de la moitié de la production céréalière française en 2021. Nous cherchons donc à mesurer l'impact du changement climatique sur les rendements du blé tendre d'hiver et de l'épeautre français et la manière dont la résilience de ces cultures face aux variables climatiques a évolué sur la période 2010-2022. Alors que beaucoup d'études sur le sujet ont utilisé des modèles linéaires, nous souhaitons recourir à des techniques de \textit{Machine Learning} pour capter les effets non linéaires des variables météorologiques sur le rendement de manière précise.
+Notre approche trouve aussi son originalité dans la description des phénomènes d'adaptation des cultures que nous aurons identifiés. Nos données nous permettent en particulier de suivre l'évolution des surfaces cultivées et de la taille des parcelles par département et de les mettre en regard des rendements observés. \\
+
+Après avoir présenté nos données (2) et notre méthode (3), nous mettons en évidence un effet du changement climatique moins délétère à court qu'à long terme. Nous expliquons en partie ce résultat par une adaptation géographique des cultures et un accroissement de la taille des parcelles (4).
+
+
+\section{Données}
+
+\subsection{Sources de données}
+
+\paragraph{}Les données dont nous disposons pour l'agriculture sont celles de la statistique agricole annuelle (SAA), disponibles sur le site du service statistique ministériel du ministère de l'Agriculture pour les séries 2010-2022.  Elles sont issues d'une synthèse de résultats d'enquêtes statistiques, d'informations rassemblées auprès des correspondants agricoles locaux et de données administratives. Elles nous fournissent en particulier les superficies, rendements et productions récoltées chaque année par type de culture et par département. En croisant ces données avec des données méteorologiques, nous espérons identifier l'effet du réchauffement climatique sur l'agriculture. \\
+
+Les données du registre parcellaire graphique (RPG) sont des données annuelles récoltées depuis 2007 par l'Agence de service et de paiement afin notamment de distribuer les aides agricoles européennes (politique agricole commune, PAC). Des jeux de données anonymisés sont disponibles en ligne pour les années 2007 à 2022\footnote{Les données de l'année 2014 sont manquantes. Nous avons donc exclu cette année de nos analyses}. Sur l'ensemble du territoire métropolitain, sont recensés les parcelles et les îlots (groupes de parcelles présentant des caractéristiques similaires : utilisation des sols, type de culture...) en fonction des années. Pour chaque unité, sont disponibles sa géométrie, sa surface, ses coordonnées géographiques, sa culture principale et les éventuelles cultures intercalées entre deux moissons de la culture principale. \\
+
+En ce qui concerne les données climatiques, nous utilisons la base AgERA5 du programme européen Copernicus qui fournit des données quotidiennes de température (moyenne journalière, $K$), de pluviométrie (hauteur journalière, $mm.m^{-2}$) et d'ensoleillement ($J.m^{-2}$) sur l'ensemble du territoire français métropolitain avec une précision de 10 km de côté, entre 1979 et aujourd'hui. Cette base est libre d'accès, téléchargeable par année.
+
+
+
+La Figure \ref{stat_des} présente des statistiques descriptives des données présentées ci-dessus. On y observe une tendance à l'augmentation des températures et des radiations solaires, deux variables qui conformément à notre intuition semblent très corrélées, sur la période 2010-2022 en France.
+La distribution des rendements révèle quant à elle une forte hétérogénité des départements de ce point de vue. C'est sur cette hétérogénéité, combinée à la variabilité des conditions météorologiques, que s'appuieront nos résultats.
+\begin{figure}[h!]
+%\begin{adjustwidth}{-1.5cm}{}
+\centering
+\includegraphics[width=\textwidth]{stats des.png}
+\caption{Statistiques descriptives}
+\label{fig:rendements}
+    \vspace{0.5cm} % Espace vertical entre la légende et la note de lecture
+    \begin{minipage}{0.8\textwidth}
+           \textit{Note : Distribution des rendements du blé tendre d'hiver et de l'épeautre par département~; Moyenne annuelle des radiations quotidiennes~; Moyenne annuelle de la température moyenne quotidienne~; Moyenne annuelle des précipitations quotidiennes
+            }
+    \end{minipage}
+%\end{adjustwidth}
+\label{stat_des}
+\end{figure}
+
+\newpage
+
+\subsection{Jointure des sources de données}
+
+\paragraph{}Afin de créer la base de données de travail, nous avons fait la jointure des trois bases de données précédentes~: la Statistique agricoles annuelles (SAA), le registre parcellaire graphique (RPG) et la base AgERA5. Pour chaque département, pour chaque année, nous avons sélectionné les parcelles contenant du blé tendre d'hiver ou de l'épeautre et nous avons calculé leur barycentre. Nous avons alors associé à chaque parcelle les variables climatiques journalières (température moyenne, précipitations et radiations sommées sur la journée) du carré de 10km de côté dont le centre est le plus proche.
+
+Pour chaque département et chaque année, nous avons fait la moyenne spatiale des variables climatiques ainsi récoltées pour obtenir pour chacun de ces couples un tableau de taille 365 ou 366 contenant les variables climatiques journalières moyennées. Nous récupérons également pour les années 2015-2022 la surface moyenne et médiane des parcelles ainsi que la variance. Le recensement des parcelles dans le RPG a changé en 2015 : avant cette date, seulement les îlots, qui sont des ensembles de parcelles, étaient recensés. Ce changement explique le commencement de certaines de nos analyses en 2015 dans la Partie \ref{section:adaptation}. 
+
+Le rendement à l'échelle de la parcelle n'est pas disponible. Faire la jointure comme décrit précédemment permet d'avoir une précision plus importante sur les conditions météorologiques réelles sur les parcelles contenant une culture par rapport à une moyenne des variables sur l'ensemble du département qui ne prendrait pas en compte l'emplacement des parcelles. \\
+
+Enfin, nous avons fait la jointure sur le triplet (département, année, culture) avec la SAA qui contient les rendements, surfaces et productions des cultures françaises par département et année. Nous obtenons alors une base qui a pour clé primaire (département, année) et les champs suivants : rendement, production, surface, températures moyennes journalières, précipitations moyennes journalières, radiations moyennes journalières ; et surface moyenne, médiane des parcelles ainsi que leur variance pour les années 2015-2022.
+
+\section{Méthode}
+
+\subsection{Choix des cultures}
+
+\paragraph{}Nous choisissons dans cet article de nous focaliser sur le blé tendre d'hiver et l'épeautre, regroupés dans les données de la SAA, qui correspondent à la production la plus importante en France. Celle-ci représente en effet 52 \% de la production céréalière et 53 \% de la surface cultivée en 2021. Le blé et l'épeautre sont cultivés principalement dans le Nord de la France. Ils sont notamment utilisés pour produire une farine considérée comme panifiable. Il en existe une multitude de variétés dont certaines contiennent du matériel génétique provenant d'autres espèces (riz, seigle, etc.). \\
+
+Les phénomènes climatiques impactent le rendement de ces cultures. L'augmentation moyenne des températures accélère par exemple leur développement, les rendant plus sensibles aux gelées hivernales.\footnote{\url{https://pays-de-la-loire.chambres-agriculture.fr/}} Les principaux risques météorologiques durant les différentes étapes du cycle de croissance du blé sont présentés dans la Figure~\ref{fig:frise}.
+
+\vspace{0.5cm}
+
+\begin{figure}[htbp]
+    \centering
+\begin{chronology}[6]{1}{12}{\textwidth}
+% Risques climatiques
+\newcommand{\riskevent}[3]{\pgfmathsetmacro{\eventstart}{#1}\node[below, text=red, align=center] at (\eventstart,#3) {#2};}
+\riskevent{0}{\textit{Risques climatiques} : }{-0.5}
+\riskevent{3}{Hiver doux}{-0.5}
+\riskevent{7}{Gel de printemps}{-0.5}
+\riskevent{9.5}{Pluie}{-0.5}
+\riskevent{12}{Températures élevées}{-0.5}
+
+% Autres événements
+\event{1}{Semis (Octobre)}
+\event{2}{Levée (Novembre)}
+\event{3}{Tallage (Décembre - Février)}
+\event{6}{Epi 1 cm (Mars)}
+\event{7}{1 noeud (Avril)}
+\event{7.5}{2 noeuds (Avril)}
+\event{8}{Début épiaison (Mai)}
+\event{8.5}{Début floraison (Mai)}
+\event{9}{Remplissage grains (Juin - Juillet)}
+\event{10}{Maturité (Mi-Juillet)}
+\end{chronology}
+
+\caption{Les risques climatiques pendant le cycle de croissance du blé tendre d'hiver}
+\label{fig:frise}
+\end{figure}
+
+\vspace{0.5cm}
+
+\subsection{Stratégie empirique}
+%\vspace{-0.1cm}
+
+\paragraph{} Pour répondre à la question de l'impact du changement climatique sur le rendement du blé tendre d'hiver et de l'épeautre, nous exploitons les variations à long terme des températures, des précipitations et de l'ensoleillement (radiations). La littérature ayant montré que la relation entre variables climatiques et rendements agricoles était non-linéaire (Roberts et Schlenker 2009 \cite{schlenker2008}), nous modélisons celle-ci par des forêts aléatoires. L'effet des variables météorologiques sur le rendement dépend aussi du stade de croissance de celle-ci, comme illustré dans la Figure \ref{fig:frise}. 
+
+Enfin, comme l'a violemment rappelé la chute importante de la production de blé en 2016, les interactions entre variables climatiques ont elles aussi un effet sur les rendements. Cette année-là, à des températures anormalement chaudes à l'automne précédent s'étaient ajoutées des précipitations extrêment élevées en mai et un rayonnement solaire exceptionnellement faible au printemps\footnote{\url{https://www.inrae.fr/actualites/mieux-comprendre-limpact-devenements-climatiques-extremes-rendements-du-ble}}. Nous souhaitons prendre en comptes ces phénomènes et trouver les modèles qui expliquent le mieux possible le rendement d'une culture une année donnée et dans un département donné, tout en évitant le surapprentissage. \\
+
+Après de nombreux ajustements et en nous basant sur la manière dont cela été fait dans la littérature (Ceglar et al.,
+2016 \cite{ceglar2016}), nous avons décidé d'agréger nos données météorologiques de façon mensuelle. Nos variables explicatives sont ainsi les suivantes : température moyenne, température maximale, température minimale, moyenne des radiations quotidiennes (proportionnelle au cumul mensuel de celles-ci), moyenne des précipitations quotidiennes (idem), nombre maximal de jours d'affilé sans précipitations.
+
+Nous ajoutons aussi une variable département qui permet de capter en partie les informations qui manquent dans nos données, comme la surface moyenne des parcelles\footnote{Information disponible seulement à partir de 2015} et la surface cultivée en bio. En effet, le classement des départements français selon ces deux variables a peu évolué entre 2010 et 2022\footnote{agencebio.org} et celles-ci peuvent avoir une influence sur les rendements du blé et de l'épeautre. Ainsi, les rendements du blé tendre cultivé en agriculture biologique sont inférieurs de 57\% à ceux constatés en agriculture conventionnelle.\footnote{\url{https://www.pleinchamp.com/actualite/bio-des-ecarts-de-rendement-compris-entre-28-et-57-en-grandes-cultures}} Cela peut en partie expliquer la forte hétérogénéité des rendements observée dans la Figure 1. Le cycle de croissance du blé tendre d'hiver et de l'épeautre s'étend d'octobre à juillet, et ce sont donc ces mois que nous considérerons pour entraîner nos modèles. \\
+
+En raison du changement climatique, la France fait face à des événements de vagues de chaleur (températures et radiations importantes) de plus en plus intenses et fréquentes, et à une diminution des records froids et des jours de gel\footnote{\url{https://meteofrance.com/changement-climatique/observer/changement-climatique-et-vagues-de-chaleur}}. Nous faisons l'hypothèse que l'agriculture s'adapte progressivement à ces phénomènes qui deviennent moins nocifs à long terme qu'ils ne le sont à court terme. Pour la vérifier, nous entrainons deux modèles de forêts aléatoires pour prédire le rendement à partir des variables explicatives décrites plus haut : l'un de long terme entraîné sur l'ensemble de la période 2010 à 2022\footnote{Excepté l'année 2014 qui manque dans nos données}, et l'autre de court terme, entrainé sur trois ans (2010-2012). 
+
+Les forêts aléatoires sont une technique d'apprentissage automatique largement utilisée pour résoudre des problèmes de régression comme le nôtre. Nous l'adpatons afin de prendre en compte le caractère temporel inhérent à nos données. Nous divisons ainsi nos données en plusieurs ensembles d'entraînement et de test en conservant l'ordre temporel des observations. Grâce à ces différents ensembles d'entraînement, nous créons de multiples arbres de décision, chacun d'entre eux utilisant un sous-ensemble aléatoire de nos variables explicatives. Nous utilisons la moyenne des rendements prédits par tous les arbres comme prédiction finale du rendement une année donnée. Outre leur capacité à capturer des relations non linéaires et des interactions, les forêts permettent d'éviter le surapprentissage, chaque arbre étant formé sur un échantillon aléatoire des données et utilisant uniquement un sous-ensemble aléatoire des variables explicatives. \\
+
+Les résultats de la forêt entraînée sur 2010 - 2022 seront indicatifs sur l'impact à long terme du réchauffement climatique sur les rendements, en prenant en considération les adaptations ayant eu lieu sur la période. Leur comparaison avec ceux de la forêt entraînée sur 2010 - 2012 permettra de connaître l'effet de l'adaptation. \\
+
+Une fois cet effet évalué, il conviendra de déterminer ce qui a permis d'éviter une détérioration trop importante du rendement. De telles adaptations peuvent se faire de différentes manières : choix variétal (espèces plus précoces qui éviteront l'échaudage par exemple), choix des parcelles (sols profonds avec des réserves hydriques importantes pour faire face aux sécheresses), emplacement des parcelles (et conditions météorologiques de cet emplacement), taille des parcelles (informative sur les traitements phytosanitaires et la mécanisation de celles-ci), rotation des cultures (un précédent de légumineuses permet un meilleur enracinement du blé et une meilleure utilisation des ressources en eau du sol), limitation du travail du sol, etc. Nos données ne nous permettront pas de trancher entre l'ensemble de ces points. Nous pourrons néanmoins étudier l'évolution de la surface cultivée dans des départements aux rendements hétérogènes et l'évolution de la taille moyenne des parcelles dans ceux-ci.
+
+\vspace{0.5cm}
+
+\section{Résultats}
+\subsection{Effets des variables météorologiques sur les rendements à court et long termes}
+
+\paragraph{}Après différents ajustements, nous avons obtenu des modèles de forêts aléatoires à court terme (CT, 2010-2012) et à long terme (LT, 2010-2022) nous donnant de bonnes prédictions du rendement lorsqu'ils sont utilisés sur des échantillons tests. Nous présentons ces performances dans la Figure \ref{fig:performance}. 
+
+Les rendements prédits par les modèles CT et LT entrainés sur des échantillons aléatoires représentant 70 \% des données 2010-2012 et 2010-2022 respectivement, et testés sur le reste des données, sont tracés en fonction des vrais rendements (de ces échantillons tests). De même, en guise de robustesse, un modèle LT est entrainé sur toutes les années sauf 2 retirées aléatoirement de l'échantillon et testé sur ces deux années. Les $R^2$
+ obtenus sont tous supérieurs à 0.75, nous permettant de penser que nous avons approché le modèle biologique sous-jacent de manière satisfaisante.
+\begin{figure}[htbp]
+\centering
+
+\includegraphics[width=0.9\textwidth]{performances rf ble.png}
+\caption{Performance des modèles de prédiction du rendement}
+\label{fig:performance}
+\end{figure}
+
+\newpage
+La Figure 4 présente l'évolution du rendement, ainsi que les prédictions de celui-ci par nos modèles de court et long termes. Comme attendu, les prédictions sont proches des valeurs effectives sur la période d'entraînement des modèles (2010-2012 pour le modèle de court terme, 2010-2022 pour celui de long terme). Ce qu'il est intéressant de noter, c'est que le rendement prédit par le modèle de court terme, qui n'intègre pas les capacités d'adaptation des cultures, est globalement inférieur aux réalisations de celui-ci après 2012. Et ce, en dépit d'une augmentation moyenne des radiations solaires et des températures depuis lors qui jouent négativement sur le rendement (cf Figure 6 en Annexes). Les données de 2016 peuvent être considérés comme des \textit{outliers}, 2015-2016 ayant été touchées par un ensemble de conditions climatiques très défavorables. Cela semble donc confirmer l'hypothèse formulée plus haut : l'effet délétère à court terme du changement climatique (ici des indicateurs météorologiques) sur le rendement du blé tendre d'hiver et de l'épeautre serait atténué à plus long terme, probablement en raison d'une adaptation des cultures.\footnote{Nous supposons ici que nos modèles approchent très bien le vrai modèle biologique du rendement et que tout ce qui influence le rendement sans être présent dans nos variables est capté par la variable département}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=\textwidth]{rendements.png}
+\caption{Comparaison des prédictions des modèles de long terme et de court terme}
+\label{fig:prédictions}
+\end{figure}
+
+Les variables les plus importantes pour l'entraînement des modèles long terme et court terme sont assez similaires (cf Annexes). Dans les deux cas, les radiations solaires arrivent les premières car la photosynthèse qu'elles rendent possible affecte directement le rendement du blé. Les précipitations apparaissent dans un deuxième temps, devant les températures dont l'effet doit être en partie capté par les radiations. L'importance relative de ces dernières dans la prédiction du rendement est toutefois plus marquée dans le modèle de court terme. Cela pourrait à nouveau traduire une certaine adaptation des cultures aux variations de températures. Les effets partiels des différentes variables sur le rendement sont présentés en Annexes.
+
+\subsection{Phénomènes d'adaptation}
+
+\label{section:adaptation}
+Pour observer l'adaptation des cultures grâce à nos données, nous mobilisons la surface cultivée en blé tendre d'hiver et épeautre ainsi que la surface moyenne des parcelles de ces cultures par département. Nous utilisons en particulier les événements climatiques de l'année de production 2015-2016 qui ont entrainé une chute importante des rendements en France, comme expliqué plus haut. Nous souhaitons décrire les évolutions en termes de surfaces et tailles de parcelles qui ont suivi ces événements. 
+
+Pour ce faire, nous répartissons les départements dont la surface cultivée en blé tendre d'hiver et en épeautre est supérieure à 20 000 ha en quatre groupes de tailles homogènes (entre 9 et 14 départements) en fonction de l'évolution de leurs rendements entre 2015 et 2016. Nous présentons une carte de ces groupes en Annexes (Figure \ref{fig:carte}) qui révèle 4 groupes concentriques, et une diminution du rendement de moins en moins importante à mesure que l'on s'éloigne de l'Ile de France. Cette répartition géographique semble confirmer la prépondérance de l'effet "météo" dans la baisse de rendement cette année-là. Les conditions météorologiques défavorables étaient présentes principalement en Ile de France et dans les Hauts-de-France, moins sur la côte Atlantique et dans le Sud de la France\footnote{\url{https://www.semencesdefrance.com/actualite-semences-de-france/rendements-catastrophiques-ble-2016-pluie-seule-responsable/} avec des données MétéoFrance}.
+
+On peut également remarquer que les départements dont les rendements ont le moins chuté en 2016 sont ceux dont la surface cultivée et la taille moyenne des parcelles sont les moins élevées (courbes 3 et 4 en niveaux sur la Figure \ref{fig:adaptation}).
+
+Les départements les plus touchés par le choc de 2016 se distinguent des autres de plusieurs manières : par leur emplacement géographique, une surface cultivée plus grande, une taille moyenne de parcelles plus élevée, et donc peut-être par un mode de culture et des variétés cultivées différents. \\
+
+Les 4 groupes de départements connaissent une augmentation des surfaces moyennes des parcelles (premier graphique de la Figure \ref{fig:adaptation}). Celle-ci est plus marquée dans les départements dont les rendements ont le moins chuté en 2016  (5.5\% en 2017 et 11\% en 2022). Dans les trois autres groupes, la surface moyenne des parcelles n'a augmenté que de 2.5 \% à 3 \% en 2022 par rapport à 2016. 
+
+On constate également une augmentation de la surface cultivée dans le groupe bleu (deuxième graphique, Figure \ref{fig:adaptation}). Elle pourrait être due en grande partie à une augmentation de la taille moyenne des parcelles. Pour les trois autres groupes, la surface cultivée baisse. 
+
+L'extension des surfaces cultivées s'est donc faite en priorité dans les départements où le blé et l'épeautre se sont montrés plus résilients aux événements météorologiques extrêmes du cycle 2015 - 2016. \\
+
+
+ A la suite du choc climatique de 2016, le secteur agricole a utilisé le levier géographique pour s'adapter. La surface cultivée a augmenté dans les départements les plus résilients. Il s'est aussi adapté par le biais d'une augmentation de la taille des parcelles, corrélée avec un rendement plus élevé et, possiblement ainsi par le mode de culture (mécanisation, etc.).
+
+Par ailleurs, les analyses\footnote{\url{https://www.arvalis.fr/infos-techniques/moisson-2016-les-explications-darvalis-en-video} et dossier de presse Arvalis du 14 septembre 2016} de la situation exceptionnelle de 2016 montrent qu'une diversification des variétés de blé et d'épeautre, une rotation des cultures et un élargissement de la période de semis favorisent la résilience des cultures face aux événements climatiques. D'autres leviers, non observables dans nos données, ont donc probablement été actionnés depuis 2016. 
+
+Enfin, en 2016, l'écart de rendement entre agriculture conventionnelle et biologique s'est réduit. L'agriculture bio a également pâti de la météo mais a fait preuve de plus de résilience que l'agriculture conventionnelle. Certains ingénieurs agronomes\footnote{\url{https://www.arvalis.fr/}} soutiennent que cela est dû à un semis plus tardif et peut-être à des variétés de blé plus tolérantes. Sur le long terme, ou pour réduire les risques, l'agriculture biologique pourrait donc être une solution à la baisse de rendement malgré son rendement actuel plus faible que celui de l'agriculture conventionnelle.
+
+
+\begin{figure}[h!]
+\begin{adjustwidth}{-0.4cm}{}
+\centering
+\includegraphics[scale=0.22]{adaptation.jpg}
+\caption{Evolution de la surface cultivée et de la taille moyenne des parcelles (blé tendre d'hiver et épeautre)}
+\label{fig:adaptation}
+    \vspace{0.5cm} % Espace vertical entre la légende et la note de lecture
+    \begin{minipage}{0.8\textwidth}
+        \textit{Note : La figure présente l'évolution de la surface cultivée et de la taille moyenne des parcelles des départements dont la surface cultivée en blé tendre d'hiver et en épeautre est supérieure à 20 000 ha, soit 58 départements sur 95. Ceux-ci sont répartis en quatre groupes (contenant chacun entre 9 et 14 départements) en fonction de l'évolution de leurs rendements entre 2015 et 2016, année de chute importante de la production de blé. Dans les deux premiers graphiques, la surface moyenne cultivée et la taille moyenne des parcelles ont été normalisées à 100 en 2016. Les données relatives à la taille des parcelles ne sont disponibles qu'à partir de 2015.}
+    \end{minipage}
+\end{adjustwidth}
+\end{figure}
+
+
+\section{Conclusion}
+
+\paragraph{}L'objectif de cette étude est de contribuer à documenter l'effet du réchauffement climatique sur l'agriculture. Nous avons ainsi créé deux modèles de prédiction des rendements du blé tendre d'hiver et de l'épeautre des départements métropolitains à partir de variables météorolgiques : l'un de court terme, l'autre de long terme. Les prédictions du premier sur 2010 - 2022 sont globalement inférieures à celles du second, malgré une augmentation des températures et des radiations solaires, ce qui pourrait refléter un phénomène d'adaptation des cultures au changement climatique depuis 2012.\\
+
+Nous nous intéressons aussi à la forme que peut prendre cette adaptation. Nous mettons ainsi en avant une augmentation de la taille des parcelles et de la surface cultivée dans les départements dont les rendements ont le moins pâti des événements météorologiques extrêmes de 2015 - 2016.
+\renewcommand{\refname}
+
+\newpage
+
+
+
+\section{Bibliographie}
+
+\begin{thebibliography}{1}
+
+\bibitem{burke2016}
+Burke, Marshall and Emerick, Kyle. 2016. "Adaptation to Climate Change: Evidence from US Agriculture." American Economic Journal: Economic Policy, 8 (3): 106-40. 
+
+\bibitem{schlenker2008}
+Roberts, Michael J and Schlenker, Wolfram. 2008. "Estimating the Impact of Climate Change on Crop Yields: The Importance of Nonlinear Temperature Effects." National Bureau of Economic Research, 13799.
+
+\bibitem{ceglar2016}
+Ceglar, Dentener, Lecerf Toreti and Van der Velde . 2016. "Impact of meteorological drivers on regional inter-annual crop yield variability in France." Agricultural and Forest Meteorology, Volume 216, Pages 58-67.
+
+\bibitem{licker2013}
+ Doré, Kucharik, Licker, Lindeman and Makowski. 2013. "Climatic impacts on winter wheat yields in Picardy, France and Rostov, Russia: 1973-2010." Agricultural and Forest Meteorology, Volume 176, Pages 25-37.
+
+\bibitem{guntukula2020}
+Guntukula, Raju. 2020. "Assessing the impact of climate change on Indian agriculture: Evidence from major crop yields." J Public Affairs, 20:e2040. \url{https://doi.org/10.1002/pa.2040} 
+
+\bibitem{sarker2012}
+Alam, Gow and Sarker. 2012. "Exploring the relationship between climate change and rice yield in Bangladesh: An analysis of time series data." Agricultural Systems, Volume 112, Pages 11-16.
+
+\bibitem{choudhary2023}
+Choudhary, Tahir Fazal Gupta, Meenakshi. 2023. "Analyzing the long-run and short-run impacts of climate change on wheat and maize yield in western himalayan region of India." Climate Change Economics, 2350019.
+
+\bibitem{jha2023}
+Chinngaihlian, Handa, Jha and Upreti. 2023. "A machine learning approach to assess implications of Climate Risk Factors on Agriculture: The Indian case." Climate Risk Management, Volume 41, 100523.
+
+\bibitem{li2011}
+Kaiser, Li, Suzuki and Takahashi 2011. "The impact of climate change on maize yields in the United States and China." Agricultural Systems, Volume 104, Issue 4, Pages 348-353.
+
+\bibitem{Ritchie  Hanway}Benson, Hanway and Ritchie. (1993) How a corn plant develops. Iowa State University of Science and Technology Cooperative Extension Service, Ames.
+
+\bibitem{dell2014} Dell, Jones and Olken. 2014. "What Do We Learn from the Weather? The New Climate–Economy Literature",Journal of Economic Literature, Vol. 52, No. 3, pp. 740-798
+
+\bibitem{auffhammer2014}Maximilian Auffhammer and Wolfram Schlenker . 2014. "Empirical studies on agricultural impacts and adaptation". Energy Economics, 46, pp. 555-561
+
+\bibitem{chen2024}Maximilian Auffhammer, Luoye Chen, Xiaoguang Chen, Jing Gao,  Binlei Gong and Madhu Khanna. The spatiotemporal pattern of surface ozone and its impact on agricultural productivity in China, PNAS Nexus, Volume 3, Issue 1, January 2024, pgad435
+
+
+\end{thebibliography}
+
+\newpage
+
+\section{Annexes}
+
+\begin{table}[htbp]
+    \centering
+    \caption{20 variables les plus importantes pour le modèle long terme}
+    \begin{tabular}{lr}
+        \toprule
+        Variable & Importance \\
+        \midrule
+        radiations janvier & 100.000 \\
+        radiations décembre & 53.008 \\
+        radiations février & 17.861 \\
+        radiations juillet & 12.935 \\
+        précipitations mai & 9.307 \\
+        radiations juin & 9.180 \\
+        radiations mars & 7.428 \\
+        radiations octobre & 6.875 \\
+        précipitations janvier & 6.361 \\
+        précipitations avril & 5.666 \\
+        radiations novembre & 5.050 \\
+        précipitations juin & 4.484 \\
+        radiations mai & 3.946 \\
+        précipitations février & 3.892 \\
+        précipitations décembre & 3.842 \\
+        température journalière minimale avril & 3.160 \\
+        température moyenne avril & 2.974 \\
+        température journalière minimale mars & 2.718 \\
+        radiations avril & 2.660 \\
+        précipitations mars & 2.643 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+\begin{table}[htbp]
+    \centering
+    \caption{20 variables les plus importantes pour le modèle court terme}
+    \begin{tabular}{lr}
+        \toprule
+        Variable & Importance \\
+        \midrule
+        radiations janvier & 100.000 \\
+        radiations juin & 9.675 \\
+        radiations mars & 8.994 \\
+        précipitations janvier & 6.336 \\
+        radiations février & 5.645 \\
+        précipitations mars & 4.002 \\
+        température moyenne juin & 3.672 \\
+        radiations juillet & 3.054 \\
+        température journalière minimale février & 2.718 \\
+        température journalière minimale juin & 2.680 \\
+        radiations avril & 2.378 \\
+        température journalière maximale mai & 2.017 \\
+        température moyenne février & 1.480 \\
+        température journalière minimale octobre & 1.403 \\
+        précipitations avril & 1.358 \\
+        précipitations juillet & 1.174 \\
+        température journalière maximale février & 1.157 \\
+        température journalière minimale janvier & 1.104 \\
+        radiations mai & 1.088 \\
+        précipitations mai & 1.059 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\begin{adjustwidth}{-1cm}{}
+\centering
+\includegraphics[scale=1]{effets partiels ble LT.jpg}
+\caption{Effet partiel des variables les plus importantes sur le rendement du blé et de l'épeautre dans le modèle de long terme}
+\label{fig:effet}
+\end{adjustwidth}
+\end{figure}
+
+\begin{figure}[htbp]
+\begin{adjustwidth}{-1.7cm}{}
+\centering
+\includegraphics[scale=0.5]{Carte.jpg}
+\caption{Départements selon leur baisse de rendement du blé et de l'épeautre en 2016}
+\label{fig:carte}
+    \vspace{0.35cm} % Espace vertical entre la légende et la note de lecture
+    \begin{minipage}{0.8\textwidth}
+        \textit{Note : Départements dont la surface cultivée en blé tendre d'hiver et en épeautre est supérieure à 20 000 ha, soit 58 départements sur 95. Ceux-ci sont répartis en quatre groupes (contenant chacun entre 9 et 14 départements) en fonction de l'évolution de leurs rendements entre 2015 et 2016, année de chute importante de la production de blé. En rose : diminution du rendement supérieure à 40 \% ; en orange : diminution de 25 \% à 40 \% ; en vert : diminution de 10\% à \25 \% ; en bleu : diminution de moins de 10 \% ou augmentation.}
+    \end{minipage}
+\end{adjustwidth}
+\end{figure}
+\end{document}
