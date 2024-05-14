@@ -12,15 +12,15 @@ library(ggdist)
 library(sf)
 library(tidyverse)
 
-#a changer : lien du cloned repository
+#a changer pour lolo l'asticot
 setwd("C:/Users/Serv3/Desktop/DSSS project/DSSS agriculture/DSSS_agriculture")
 
 
-chemin <- "2_analyse/data/"
+chemin <- "2_analyse/data_adaptation/"
 
 base <- list()
 
-for (annee in c(2010, 2011, 2012, 2013, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022)) {
+for (annee in c(2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022)) {
   donnees_annee <- list()
   for (region in c(11,24,27,28,32,44,52,53,75,76,84,93,94)) {
     chemin_fichier <- paste0(chemin, "merged_tibble_", annee, "_", region, ".csv")
@@ -52,7 +52,320 @@ base <- as.data.frame(do.call(rbind, base))
 ##########
 ## Blé ##
 ##########
-base <-base %>%filter(Culture =="01 - Blé tendre d'hiver et épeautre")
+base_ble <- base %>%filter(Culture =="01 - Blé tendre d'hiver et épeautre")
+
+aggr1 <- aggregate(Variance_surface_parcelles ~ Annee, data = base_ble, FUN = mean)
+
+ggplot(aggr1, aes(x = Annee, y = Variance_surface_parcelles)) +
+  geom_point() +  # Add points
+  geom_line() +   # Connect points with lines
+  labs(x = "Years", y = "Values") +  # Set axis labels
+  ggtitle("Values over the Years") +  # Set plot title
+  theme_minimal()  # Apply minimal theme
+
+aggr2 <- aggregate(Variance_surface_parcelles ~ Annee, data = base_ble, FUN = mean)
+
+ggplot(aggr2, aes(x = Annee, y = Variance_surface_parcelles)) +
+  geom_point() +  # Add points
+  geom_line() +   # Connect points with lines
+  labs(x = "Years", y = "Values") +  # Set axis labels
+  ggtitle("Values over the Years") +  # Set plot title
+  theme_minimal()  # Apply minimal theme
+
+
+aggr3 <- aggregate(cbind(Mean_surface_parcelles, Median_surface_parcelles) ~ Annee, data = base_ble, FUN = mean)
+
+ggplot(aggr3) +
+  geom_line(aes(x = Annee, y = Mean_surface_parcelles, color="mean")) +  
+  geom_line(aes(x = Annee, y = Median_surface_parcelles, color="median")) +  
+  scale_color_manual(values = c("mean" = "red", "median"="blue")) +
+  labs(x = "Years", y = "Values") +  # Set axis labels
+  ggtitle("Values over the Years") +  # Set plot title
+  theme_minimal()  # Apply minimal theme
+
+ggplot(base_ble, aes(x = Annee, y = rend, group = Departement, color = as.factor(Departement))) +
+  geom_line() +
+  labs(x = "Year", y = "Mean Surface", color = "Departement") +
+  ggtitle("Evolution de quantité pour chaque département") +
+  theme_minimal()
+
+base_mais <- base %>%filter(Culture !="01 - Blé tendre d'hiver et épeautre")
+
+ggplot(base_mais, aes(x = Annee, y = surf, group = interaction(Departement, Culture), color = Culture)) +
+  geom_line() +
+  labs(x = "Annee", y = "Surface", color = "Culture") +
+  ggtitle("Evolution surface pour les types de maïs") +
+  scale_color_manual(values = c("14 - Maïs grain irrigué" = "red", "15 - Maïs grain non irrigué" = "blue")) +
+  theme_minimal()
+
+agg_data4 <- aggregate(surf ~ Annee + Culture, data = base_mais, FUN = mean)
+
+# Plotting with ggplot
+ggplot(agg_data4, aes(x = Annee, y = surf, color = Culture)) +
+  geom_line() +
+  labs(x = "Annee", y = "Surface moyenne sur les départements", color = "Culture") +
+  ggtitle("Evolution surface pour les types de maïs") +
+  scale_color_manual(values = c("14 - Maïs grain irrigué" = "red", "15 - Maïs grain non irrigué" = "blue")) +
+  theme_minimal()
+
+# =============================
+
+change_data <- base_ble %>%
+  filter(Annee %in% c(2010, 2016)) %>%
+  group_by(Departement) %>%
+  summarize(change = (last(rend) - first(rend)) / first(rend))
+
+# Classify counties into three groups based on the percentage change
+change_data <- change_data %>%
+  mutate(group = case_when(
+    change < -0.3 ~ "Decrease > 30%",
+    change >= -0.3 & change < -0.2 ~ "Decrease -20% to -30%",
+    change >= -0.2 & change < -0.1 ~ "Decrease -10% to -20%",
+    change >= -0.1 & change < 0 ~ "Decrease 0% to -10%",
+    TRUE ~ "Increase"
+  ))
+
+# Aggregate data to calculate mean surface for each year, crop, and group
+agg_data5 <- base_ble %>%
+  filter(Annee >= 2010) %>%
+  left_join(change_data, by = "Departement") %>%
+  group_by(Annee, Culture, group) %>%
+  summarize(mean_surface = mean(surf))
+
+# Plotting with ggplot
+ggplot(agg_data5, aes(x = Annee, y = mean_surface, color = Culture, linetype = group)) +
+  geom_line() +
+  labs(x = "Annee", y = "Mean Surface", color = "Culture", linetype = "Group") +
+  ggtitle("Evolution surface moyenne pour trois groupes de départements") +
+  scale_color_manual(values = c("01 - Blé tendre d'hiver et épeautre" = "red")) +
+  scale_linetype_manual(values = c("Decrease > 30%" = "solid", "Decrease -20% to -30%" = "dashed",
+                                   "Decrease -10% to -20%" = "dotted", "Decrease 0% to -10%" = "dotdash",
+                                   "Increase" = "longdash"
+                                   )) +
+  theme_minimal()
+
+#c("Decrease > 30%" = "solid", "Decrease -20% to -30%" = "dashed",
+#"Decrease -10% to -20%" = "dotted", "Decrease 0% to -10%" = "dotdash",
+#"Increase 0% to 10%" = "longdash", "Increase 10% to 20%" = "twodash",
+#"Increase 20% to 30%" = "dotted", "Increase > 30%" = "solid", "Other" = "dotted")
+
+#c("Increase > 10%" = "solid", "Decrease > 10%" = "dashed", "Other" = "dotted")
+
+# ==============================
+
+# Calculate the percentage change in rend from 2010 to 2016 for each Departement
+change_data <- base_ble %>%
+  filter(Annee %in% c(2010, 2016)) %>%
+  group_by(Departement) %>%
+  summarize(change = (last(rend) - first(rend)) / first(rend))
+
+# Classify departements into groups based on the percentage change
+change_data <- change_data %>%
+  mutate(group = case_when(
+    change < -0.3 ~ "Decrease > 30%",
+    change >= -0.3 & change < -0.2 ~ "Decrease -20% to -30%",
+    change >= -0.2 & change < -0.1 ~ "Decrease -10% to -20%",
+    change >= -0.1 & change < 0 ~ "Decrease 0% to -10%",
+    TRUE ~ "Increase"
+  ))
+
+# Aggregate data to calculate mean surface for each year, crop, and group
+agg_data5 <- base_ble %>%
+  filter(Annee >= 2010) %>%
+  left_join(change_data, by = "Departement") %>%
+  group_by(Annee, Culture, group) %>%
+  summarize(mean_surface = mean(surf))
+
+# Calculate the normalization factor as the ratio of the mean surface for each year to the mean surface for the first year, multiplied by 100
+agg_data5 <- agg_data5 %>%
+  group_by(Culture, group) %>%
+  mutate(normalization_factor = mean_surface / first(mean_surface) * 100)
+
+# Normalize the mean surface values at 100 for the first year
+agg_data5 <- agg_data5 %>%
+  ungroup() %>%
+  mutate(mean_surface_normalized = mean_surface / normalization_factor * 100)
+
+# Plotting with ggplot
+ggplot(agg_data5, aes(x = Annee, y = mean_surface_normalized, color = Culture, linetype = group)) +
+  geom_line() +
+  labs(x = "Annee", y = "Normalized Mean Surface", color = "Culture", linetype = "Group") +
+  ggtitle("Evolution of Mean Surface for Three Departement Groups") +
+  scale_color_manual(values = c("01 - Blé tendre d'hiver et épeautre" = "red")) +
+  scale_linetype_manual(values = c("Decrease > 30%" = "solid", "Decrease -20% to -30%" = "dashed",
+                                   "Decrease -10% to -20%" = "dotted", "Decrease 0% to -10%" = "dotdash",
+                                   "Increase" = "longdash")) +
+  theme_minimal()
+
+# =============================
+
+# Calculate the percentage change in rend from 2010 to 2016 for each Departement
+change_data <- base_ble %>%
+  filter(Annee %in% c(2010, 2016)) %>%
+  group_by(Departement) %>%
+  summarize(change = (last(rend) - first(rend)) / first(rend))
+
+# Classify departements into groups based on the percentage change
+change_data <- change_data %>%
+  mutate(group = case_when(
+    change < -0.3 ~ "Decrease > 30%",
+    change >= -0.3 & change < -0.2 ~ "Decrease -20% to -30%",
+    change >= -0.2 & change < -0.1 ~ "Decrease -10% to -20%",
+    change >= -0.1 & change < 0 ~ "Decrease 0% to -10%",
+    TRUE ~ "Increase"
+  ))
+
+# Aggregate data to calculate mean surface for each year, crop, and group
+agg_data5 <- base_ble %>%
+  filter(Annee >= 2010) %>%
+  left_join(change_data, by = "Departement") %>%
+  group_by(Annee, Culture, group) %>%
+  summarize(mean_surface = mean(surf))
+
+# Calculate the normalization factor as the ratio of the mean surface for each year to the mean surface for the year 2016, multiplied by 100
+agg_data5 <- agg_data5 %>%
+  group_by(Culture, group) %>%
+  mutate(normalization_factor = mean_surface / mean_surface[Annee == 2016] * 100)
+
+# Normalize the mean surface values at 100 for the year 2016
+agg_data5 <- agg_data5 %>%
+  ungroup() %>%
+  mutate(mean_surface_normalized = mean_surface / normalization_factor * 100)
+
+# Plotting with ggplot
+ggplot(agg_data5, aes(x = Annee, y = mean_surface_normalized, color = Culture, linetype = group)) +
+  geom_line() +
+  labs(x = "Annee", y = "Normalized Mean Surface", color = "Culture", linetype = "Group") +
+  ggtitle("Evolution of Mean Surface for Three Departement Groups") +
+  scale_color_manual(values = c("01 - Blé tendre d'hiver et épeautre" = "red")) +
+  scale_linetype_manual(values = c("Decrease > 30%" = "solid", "Decrease -20% to -30%" = "dashed",
+                                   "Decrease -10% to -20%" = "dotted", "Decrease 0% to -10%" = "dotdash",
+                                   "Increase" = "longdash")) +
+  theme_minimal()
+
+
+# =============================
+
+base_ble2 <- base_ble %>% filter(surf <= 20000)
+
+# Calculate the percentage change in rend from 2010 to 2016 for each Departement
+change_data <- base_ble2 %>%
+  filter(Annee %in% c(2010, 2016)) %>%
+  group_by(Departement) %>%
+  summarize(change = (last(rend) - first(rend)) / first(rend))
+
+# Classify departements into groups based on the percentage change
+change_data <- change_data %>%
+  mutate(group = case_when(
+    change < -0.3 ~ "Decrease > 30%",
+    change >= -0.3 & change < -0.2 ~ "Decrease -20% to -30%",
+    change >= -0.2 & change < -0.1 ~ "Decrease -10% to -20%",
+    change >= -0.1 & change < 0 ~ "Decrease 0% to -10%",
+    TRUE ~ "Increase"
+  ))
+
+# Aggregate data to calculate mean surface for each year, crop, and group
+agg_data5 <- base_ble2 %>%
+  filter(Annee >= 2010) %>%
+  left_join(change_data, by = "Departement") %>%
+  group_by(Annee, Culture, group) %>%
+  summarize(mean_surface = mean(surf))
+
+# Calculate the normalization factor as the ratio of the mean surface for each year to the mean surface for the year 2016, multiplied by 100
+agg_data5 <- agg_data5 %>%
+  group_by(Culture, group) %>%
+  mutate(normalization_factor = mean_surface / mean_surface[Annee == 2016])
+
+# Print out normalization factor to check
+print(agg_data5$normalization_factor)
+
+# Normalize the mean surface values at 100 for the year 2016
+agg_data5 <- agg_data5 %>%
+  ungroup() %>%
+  mutate(mean_surface_normalized = normalization_factor * 100)
+
+# Plotting with ggplot
+ggplot(agg_data5, aes(x = Annee, y = mean_surface_normalized, color = group)) +
+  geom_line(linetype = "solid") +
+  labs(x = "Annee", y = "Normalized Mean Surface", color = "Group") +
+  ggtitle("Evolution of Mean Surface for Three Departement Groups") +
+  scale_color_manual(values = c("Decrease > 30%" = "darkred", 
+                                "Decrease -20% to -30%" = "red",
+                                "Decrease -10% to -20%" = "orange", 
+                                "Decrease 0% to -10%" = "yellow",
+                                "Increase" = "green")) +
+  theme_minimal()
+
+# =============================
+
+base_ble2 <- base_ble %>% filter(surf >= 20000) #########
+
+length(unique(base_ble$Departement))
+
+# Calculate the percentage change in rend from 2010 to 2016 for each Departement
+change_data <- base_ble2 %>%
+  filter(Annee %in% c(2015, 2016)) %>%
+  group_by(Departement) %>%
+  summarize(change = (last(rend) - first(rend)) / first(rend))
+
+# Classify departements into groups based on the percentage change
+change_data <- change_data %>%
+  mutate(group = case_when(
+    change < -0.4 ~ "Diminution > 40%",
+    change >= -0.4 & change < -0.25 ~ "Diminution de 25% à 40%",
+    change >= -0.25 & change < -0.1 ~ "Diminution de 10% à 25%",
+    change >= -0.10 & change < 1 ~ "Dim. de moins de 10% ou augmentation",
+    TRUE ~ "Other"
+  ))
+
+# Aggregate data to calculate mean surface for each year, crop, and group
+agg_data5 <- base_ble2 %>%
+  filter(Annee >= 2010) %>% ###########
+  left_join(change_data, by = "Departement") %>%
+  group_by(Annee, Culture, group) %>%
+  summarize(mean_surface = weighted.mean(Mean_surface_parcelles)) ##########
+
+# Calculate the normalization factor as the ratio of the mean surface for each year to the mean surface for the year 2016, multiplied by 100
+agg_data5 <- agg_data5 %>%
+  group_by(Culture, group) %>%
+  mutate(normalization_factor = mean_surface / mean_surface[Annee == 2016])
+
+# Print out normalization factor to check
+print(agg_data5$normalization_factor)
+
+# Normalize the mean surface values at 100 for the year 2016
+agg_data5 <- agg_data5 %>%
+  ungroup() %>%
+  mutate(mean_surface_normalized = normalization_factor * 100)
+
+# Plotting with ggplot
+ggplot(agg_data5 %>% filter(group != "Other"), aes(x = Annee, y = mean_surface_normalized, color = group)) +
+  geom_line(linetype = "solid", size = 1.5, alpha=1) +
+  labs(x = "", y = "Surface moyenne normalisée", color = "Group") +
+  ggtitle("") +
+  scale_color_manual(name = "Diminution du rendement entre 2015 et 2016",
+                    values = c("Diminution > 40%" = "#DF8278", 
+                                "Diminution de 25% à 40%" = "#E48A00",
+                                #"Decrease -10% to -20%" = "orange", 
+                                "Diminution de 10% à 25%" = "#6BC064",
+                                "Dim. de moins de 10% ou augmentation" = "#98B4F9"),
+                     limits = c("Diminution > 40%", "Diminution de 25% à 40%", "Diminution de 10% à 25%", "Dim. de moins de 10% ou augmentation")) +
+  theme_minimal()
+
+model <- lm(rend ~ Mean_surface_parcelles + Median_surface_parcelles
+            + prod + surf, data=base_ble)
+
+summary(model)
+
+ggplot(base_ble, aes(x = rend, y = Mean_surface_parcelles)) +
+  geom_point() +  # Add points for each data point
+  labs(x = "X-axis label", y = "Y-axis label") +  # Add axis labels
+  ggtitle("Scatter plot between X and Y") +  # Add plot title
+  theme_minimal()  # Use minimal theme (optional)
+
+### ======================================================================
+### ======================================================================
+
 
 calculer_max_periode <- function(ligne, debut, fin) {
   valeurs <- unlist(strsplit(ligne, ", "))
@@ -221,7 +534,7 @@ if (periode_agregation == "mois") {
   base <- ajouter_variables_bis(base)
   
 } else if (periode_agregation == "3-4 mois") {
-  # Code pour agréger par périodes de 3-4 mois
+  # Votre code pour agréger par périodes de 3-4 mois
   periodes <- list(c("oct", "nov", "dec"), c("janv", "fev", "mars"), c("avril", "mai", "juin", "juillet"))
   
   # Fonction pour ajouter les colonnes pour chaque période
@@ -483,7 +796,7 @@ variables_a_analyser <- c("radia_moy_janv",
                           "prec_moy_janv",       
                           "prec_moy_avril"                          
   )
-pdf("effets_partiels_ble.pdf")  # Ouvre un fichier PDF pour sauvegarder les graphiques
+pdf("3_plots/effets_partiels_ble.pdf")  # Ouvre un fichier PDF pour sauvegarder les graphiques
 
 par(mfrow = c(3, 4)) 
 
@@ -532,7 +845,7 @@ variables_a_analyser <-  c("radia_moy_janv",
                            "prec_moy_mars",       
                            "prec_moy_janv"                         
 )
-pdf("effets_partiels_ble_3ans.pdf")  # Ouvre un fichier PDF pour sauvegarder les graphiques
+pdf("3_plots/effets_partiels_ble_3ans.pdf")  # Ouvre un fichier PDF pour sauvegarder les graphiques
 
 par(mfrow = c(3, 4)) 
 
@@ -682,10 +995,6 @@ prediction_CT_mean = list()
 prediction_CT_first_decile = list()
 prediction_CT_last_decile = list()
 
-###################################################################
-############### Pour plot le graphique Figure 4 ###################
-###################################################################
-
 for (annee_cur in c(2010,2011,2012,2013,2015,2016,2017,2018,2019,2020,2021,2022)) {
   data_cur <- train_data %>% 
     filter(Annee == annee_cur)
@@ -760,7 +1069,7 @@ if (periode_agregation == "mois") {
                                          temp_moy_oct, temp_max_oct, temp_min_oct, prec_moy_oct, radia_moy_oct,                
                                          max_jours_prec_nulles_oct, temp_moy_nov, temp_max_nov, temp_min_nov, 
                                          prec_moy_nov, radia_moy_nov, max_jours_prec_nulles_nov, temp_moy_dec, 
-                                         temp_max_dec, temp_min_dec, prec_moy_dec, radia_moy_dec, max_jours_prec_nulles_dec))
+                                         temp_max_dec, temp_min_dec, prec_moy_dec, radia_moy_dec, max_jours_prec_nulles_dec  ))
 } else if (periode_agregation == "3-4 mois") {
   train_data <- subset(base, select = -c(LIB_DEP, temperature_moyenne24h, precipitation_somme24h, radiation_somme24h, Culture, prod,
                                          temp_moy_oct_dec, temp_max_oct_dec, temp_min_oct_dec, prec_moy_oct_dec, radia_moy_oct_dec,                

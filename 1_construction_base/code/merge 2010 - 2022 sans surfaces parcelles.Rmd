@@ -1,13 +1,5 @@
 # Merging of the datasets
 
-## A faire
-
--   Gérer différents RPG
--   Charge une seule fois le RPG pour toutes les cultures !
--   Attention RPG par région !
--   Join avec SAA
--   Voir : Avis : Using an external vector in selections was deprecated in tidyselect 1.1.0. Please use `all_of()` or `any_of()` instead. Was: data %\>% select(lon) Now: data %\>% select(all_of(lon)) See <https://tidyselect.r-lib.org/reference/faq-external-vector.html>.
-
 ## Packages
 
 ```{r}
@@ -24,46 +16,6 @@ library(jsonlite)
 ## Pseudo-code
 
 ```{r}
-# Variables globales : 
-#   - Cultures choisies
-#   - Années choisies
-#   - Départements choisies
-#
-#
-# Pseudo-code - premiere version
-# Output : dataframe avec (#département * #culture * #année) lignes
-#          et les colonnes suivantes : département, 
-#                                      culture, 
-#                                      année, 
-#                                      région,
-#                                      surface, 
-#                                      production, 
-#                                      rendement, 
-#                                      variables climatiques moyennées
-#                                      pourcentage de bio
-#                                      taille moyenne des parcelles
-#                                      nombre de parcelles
-# 
-# Load les données SAA 2010-2022
-# Nettoyer les données SAA :
-#     - garder lignes pour cultures choisies, dépt choisies, années choisies
-#     
-# Pour chaque année :
-#    Pour chaque culture :
-#       Pour chaque département d :
-#          Load les données RPG pour le département,
-#          Extraire les parcelles de la culture
-#          Calculer le centroid de ces parcelles
-#          Pour chaque variable climatique var_clim :
-#             Pour chaque jour j :
-#                Load les données AgERA5 du jour j,
-#                Pour chaque parcelle :
-#                   Récupérer la var_clim la plus proche du centroid
-#                Faire la moyenne des var_clim pour le jour j
-#             Mettre la liste des moyennes journalières de var_clim dans la 
-#             - ligne associée à la culture/année/dépt
-#
-
 # Pseudo-code - deuxième version
 # Output : dataframe avec (#département * #culture * #année) lignes
 #          et les colonnes suivantes : département, 
@@ -103,30 +55,6 @@ library(jsonlite)
 # Jointure des données SAA avec le dataset obtenu
 ```
 
-```{r}
-# Pour chaque année :
-#   Pour chaque région :
-#     Load les données RPG pour la région,
-#     Pour les départements de la région :
-#       Extraire les parcelles du département
-#       Pour chaque culture :
-#         Extraire les parcelles de la culture
-#         Calculer le centroid de ces parcelles
-#         Pour chaque variable climatique var_clim :
-#           Pour chaque jour j :
-#             Load les données AgERA5 du jour j,
-#             Pour chaque parcelle : (jointure)
-#               Récupérer la var_clim la plus proche du centroid
-#               Faire la moyenne des var_clim pour le jour j
-#             Mettre la liste des moyennes journalières de var_clim dans la 
-#             - ligne associée à la culture/année/dépt
-#
-# Load les données SAA 2010-2022
-# Nettoyer les données SAA :
-#     - garder lignes pour cultures choisies, dépt choisies, années choisies
-# Jointure des données SAA avec le dataset obtenu
-```
-
 ## Global variables
 
 Les variables globales sont les suivantes :
@@ -135,7 +63,12 @@ Les variables globales sont les suivantes :
 -   `list_cult` : la liste des cultures au format de la colonne `LIB_CODE` du SAA
 -   `list_annee` : la liste des années sous forme de `numeric`
 -   `list_var_clim` : la liste des variables climatiques
--   `corres_cult` :
+-   `corres_cult` : pour faire le lien entre RPG et SAA
+-   `list_region` : liste des régions selon la nomenclature du RPG
+-   `crs193` et `wgs84` : pour la conversion des coordonnées
+-   `departements` : une base qui contient les départements et leur polygone, permet d'attribuer les parcelles aux bons départements.
+-   `corresp_var_clim` : pour faire le lien entre Copernicus et les noms que nous avons choisi
+-   `leap_year` : fonction pour déterminer si une année est bissextile
 
 #### list_dept
 
@@ -167,18 +100,16 @@ list_dept[[20]] <- "02A"
 #list_dept
 ```
 
-
 #### list_region
 
 ```{r}
 list_region = c(11, 24, 27, 28, 32, 44, 52, 53, 75, 76, 84, 93, 94) #Convention de numérotation du RPG
 ```
 
-
 #### list_cult
 
 ```{r}
-list_cult = c("01 - Blé tendre d'hiver et épeautre", "14 - Maïs grain irrigué", "15 - Maïs grain non irrgué") 
+list_cult = c("01 - Blé tendre d'hiver et épeautre", "15 - Maïs grain non irrigué") 
 ```
 
 #### list_annee
@@ -211,14 +142,12 @@ list_var_clim = list("temperature_moyenne24h", "precipitation_somme24h", "radiat
 ```{r}
 #read_csv2("../data/REF_CULTURES_2021.csv")
 
-dict_SAA_to_RPG = list("01 - Blé tendre d'hiver et épeautre" = c("BTH", "BH"),
-                       "14 - Maïs grain irrigué" = c("MA", "MIS"),
-                       "15 - Maïs grain non irrgué" = c("MA", "MIS")
+dict_SAA_to_RPG = list("01 - Blé tendre d'hiver et épeautre" = c("01"),
+                       "14 - Maïs grain irrigué" = c("02"),
+                       "15 - Maïs grain non irrigué" = c("02")
                          )
-dict_RPG_to_SAA = list("BTH" = "01 - Blé tendre d'hiver et épeautre", 
-                       "BH" = "01 - Blé tendre d'hiver et épeautre",
-                       "MA" = c("14 - Maïs grain irrigué", "15 - Maïs grain non irrgué"),
-                       "MIS" = c("14 - Maïs grain irrigué", "15 - Maïs grain non irrgué")
+dict_RPG_to_SAA = list("01" = "01 - Blé tendre d'hiver et épeautre",
+                       "02" = c("14 - Maïs grain irrigué", "15 - Maïs grain non irrigué")
                        )
 ```
 
@@ -234,7 +163,7 @@ leap_year <- function(year) {
 }
 ```
 
-#### Variables gloables géographiques
+#### Variables globales géographiques
 
 ```{r}
 crs193 <- "+proj=lcc +lat_1=49 +lat_2=44 +lat_0=46.5 +lon_0=3 +x_0=700000 +y_0=6600000 +ellps=GRS80 +units=m +no_defs"
@@ -243,7 +172,7 @@ wgs84 <- "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
 
 ```
 
-####
+#### 
 
 ```{r}
 # Charger les données géographiques des départements
@@ -259,26 +188,20 @@ departements <- st_transform(departements, "+init=epsg:2154") #4326
 departements$reg_code <- as.character(substr(departements$reg_code, 3, nchar(departements$reg_code) - 2))
 departements$dep_code <- as.character(substr(departements$dep_code, 3, nchar(departements$dep_code) - 2))
 ```
+
 ```{r}
 #departements
 #[departements$reg_code == list(53),]
 departements$dep_code
 ```
+
 #### variable climatique to name in .nc
 
 ```{r}
 corresp_var_clim = list("temperature_moyenne24h" = "Temperature_Air_2m_Mean_24h", "precipitation_somme24h" = "Precipitation_Flux", "radiation_somme24h" = "Solar_Radiation_Flux")
 ```
 
-
 ## Merging
-
-#### Fonction pour une culture, un département et une année donnés
-
-```{r}
-# truc = as.Date("2022-01-01", format = "%Y-%m-%d") + 4
-# format(truc, "%Y%m%d")
-```
 
 ```{r}
 merge_3 <- function(annee, culture, dept, var_clim, donnee_RPG, verbose=FALSE) {
@@ -335,7 +258,6 @@ merge_3 <- function(annee, culture, dept, var_clim, donnee_RPG, verbose=FALSE) {
 }
 ```
 
-
 ```{r}
 # return un dataframe avec 
 merge_2 <- function(annee, culture, dept, list_var_clim, donnee_RPG, verbose=FALSE) {
@@ -376,6 +298,10 @@ merge <- function(list_annee, list_cult, list_dept, list_region, list_var_clim, 
   array_annee <- array(0, n_row)
   array_cult <- array("", n_row)
   array_dept <- array("", n_row)
+  # array_mean_surface <- array(0, n_row) ##### Si parcelles #####
+  # array_median_surface <- array(0, n_row) ##### Si parcelles #####
+  # array_var_surface <- array(0, n_row) ##### Si parcelles #####
+  
   names_list <- list_var_clim
   # Create a list of empty lists indexed with names
   data_var_clim <- lapply(setNames(replicate(length(names_list), list(), simplify = FALSE), names_list), function(x) list())
@@ -389,7 +315,7 @@ merge <- function(list_annee, list_cult, list_dept, list_region, list_var_clim, 
       path = paste("../data/RPG/",
                    annee, "/",
                    region, "/",
-                   "PARCELLES_GRAPHIQUES.shp",
+                   "ILOTS_ANONYMES.shp",
                    sep="")
       donnee_RPG <- st_read(path)
       donnee_RPG$geometry <- st_centroid(donnee_RPG$geometry)
@@ -401,8 +327,6 @@ merge <- function(list_annee, list_cult, list_dept, list_region, list_var_clim, 
       
       #changer le type vers celui de la bibliothèque sp pour pouvoir faire le chgt de système de coos
       donnee_RPG <- as(donnee_RPG, "Spatial") 
-      
-      
       
       #transformer les coordonnées du format Lambert93 vers lon/lat
       donnee_RPG <- spTransform(donnee_RPG, wgs84) 
@@ -435,6 +359,11 @@ merge <- function(list_annee, list_cult, list_dept, list_region, list_var_clim, 
           array_annee[row_count] <- annee
           array_cult[row_count] <- culture
           array_dept[row_count] <- dept
+          
+          # array_mean_surface[row_count] <- mean(donnee_RPG_culture$SURF_PARC) ##### Si parcelles #####
+          # array_median_surface[row_count] <- median(donnee_RPG_culture$SURF_PARC) ##### Si parcelles #####
+          # array_var_surface[row_count] <- var(donnee_RPG_culture$SURF_PARC) ##### Si parcelles #####
+          
           # print("list_array_var_clim")
           # print(list_array_var_clim)
           # print("array_annee")
@@ -454,6 +383,7 @@ merge <- function(list_annee, list_cult, list_dept, list_region, list_var_clim, 
       rm(donnee_RPG)
     }
   }
+  
   if (verbose) {print("==========================================================")}
   if (verbose) {print("Creating the tibble")}
   #tibble_merged <- as_tibble(cbind(array_annee, array_cult, array_dept, data_var_clim))
@@ -462,12 +392,23 @@ merge <- function(list_annee, list_cult, list_dept, list_region, list_var_clim, 
   tibble_merged <- tibble(
   Annee = array_annee,
   Culture = array_cult,
-  Departement = array_dept,
+  Departement = array_dept#,
+  # Mean_surface_parcelles = array_mean_surface, ##### Si parcelles #####
+  # Median_surface_parcelles = array_median_surface, ##### Si parcelles #####
+  # Variance_surface_parcelles = array_var_surface ##### Si parcelles #####
   )
   
   for (col_name in names(data_var_clim)) {
     tibble_merged[[col_name]] <- data_var_clim[[col_name]]
   }
+  
+  duplicated_rows <- tibble_merged[tibble_merged$Culture == "15 - Maïs grain non irrigué", ]
+
+  # Modifier la valeur dans la colonne "Culture" des lignes dupliquées
+  duplicated_rows$Culture <- "14 - Maïs grain irrigué"
+  
+  # Concaténer les données originales avec les lignes dupliquées modifiées
+  tibble_merged <- rbind(tibble_merged, duplicated_rows)
   
   #print(tibble_merged)
   
@@ -509,15 +450,15 @@ merge <- function(list_annee, list_cult, list_dept, list_region, list_var_clim, 
 ```
 
 ```{r}
-for (region in c(32)) {
+for (region in c(84, 93, 94)) {
   print(region)
-  for (annee in list(2016)) {
+  for (annee in list(2010, 2011, 2012, 2013)) {
     print(annee)
     merged_object <- merge(list(annee), list_cult, list_dept, list(region), list("temperature_moyenne24h", "precipitation_somme24h", "radiation_somme24h"), verbose=TRUE)
     for (var_clim in list("temperature_moyenne24h", "precipitation_somme24h", "radiation_somme24h")) {
       merged_object[[var_clim]] <- sapply(merged_object[[var_clim]], toString)
     }
-    write.table(merged_object, paste("../data_merged/merged_tibble_", annee, "_", region, ".csv", sep=""), sep=";")
+    write.table(merged_object, paste("../data_merged_2/merged_tibble_", annee, "_", region, ".csv", sep=""), sep=";")
   }
 }
 ```
@@ -536,7 +477,6 @@ for (region in c(84, 93, 94)) { #list_region
 }
 ```
 
-
 ```{r}
 for (annee in list(2020)) {
   merged_object <- merge(list(annee), list("01 - Blé tendre d'hiver et épeautre"), list("022"), list(53), list("precipitation_somme24h"), verbose=TRUE)
@@ -547,9 +487,9 @@ for (annee in list(2020)) {
 }
 ```
 
-10 minutes pour une région, trois cultures et une année
-Donc -> 10 minutes * 12 * 13 = 1560 minutes soit 26 heures
+10 minutes pour une région, trois cultures et une année Donc -\> 10 minutes \* 12 \* 13 = 1560 minutes soit 26 heures
 
+## Archives et tests
 
 ```{r}
 #write.csv(merged_object, paste("../data_merged/testtest_merged_tibble_", annee, "_", region, ".csv", sep=""), sep=";")
@@ -580,7 +520,6 @@ df_expanded <- df %>%
 print(df_expanded)
 ```
 
-
 ```{r}
 for (annee in list(2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022)) {
   merged_object <- merge(list(annee), list_cult, list_dept, list_region, list_var_clim, verbose=TRUE)
@@ -602,12 +541,9 @@ write_csv(merged_object, "merged_object.csv")
 paste("é", 2, "Aa", sep="")
 ```
 
-
 ```{r}
 print(head(merged_object$temperature_moyenne24h))
 ```
-
-
 
 ## TESTS
 
@@ -633,10 +569,10 @@ rpg_departements <- st_join(donnee_RPG, departements, join = st_intersects)
 head(rpg_departements)
 
 ```
+
 ```{r}
 departements[departements$dep_name_up == "HAUTE CORSE",]
 ```
-
 
 ```{r}
 tab_var_clim = array(0, 365 + leap_year(2015))
@@ -663,7 +599,6 @@ empty_lists$temperature_moyenne24h[10] <- array(0)
 
 print(empty_lists)
 ```
-
 
 ```{r}
 array_annee <- array(c(2010, 2010, 2011))
@@ -727,3 +662,46 @@ print(my_tibble)
 my_tibble$clim_data
 ```
 
+================== Archives ==================
+
+```{r}
+# Variables globales : 
+#   - Cultures choisies
+#   - Années choisies
+#   - Départements choisies
+#
+#
+# Pseudo-code - premiere version
+# Output : dataframe avec (#département * #culture * #année) lignes
+#          et les colonnes suivantes : département, 
+#                                      culture, 
+#                                      année, 
+#                                      région,
+#                                      surface, 
+#                                      production, 
+#                                      rendement, 
+#                                      variables climatiques moyennées
+#                                      pourcentage de bio
+#                                      taille moyenne des parcelles
+#                                      nombre de parcelles
+# 
+# Load les données SAA 2010-2022
+# Nettoyer les données SAA :
+#     - garder lignes pour cultures choisies, dépt choisies, années choisies
+#     
+# Pour chaque année :
+#    Pour chaque culture :
+#       Pour chaque département d :
+#          Load les données RPG pour le département,
+#          Extraire les parcelles de la culture
+#          Calculer le centroid de ces parcelles
+#          Pour chaque variable climatique var_clim :
+#             Pour chaque jour j :
+#                Load les données AgERA5 du jour j,
+#                Pour chaque parcelle :
+#                   Récupérer la var_clim la plus proche du centroid
+#                Faire la moyenne des var_clim pour le jour j
+#             Mettre la liste des moyennes journalières de var_clim dans la 
+#             - ligne associée à la culture/année/dépt
+#
+```

@@ -1,0 +1,655 @@
+# Merging of the datasets
+
+## Packages
+
+```{r}
+library(tidyverse)
+library(ncdf4)
+library(stringr)
+library(sp)
+library(sf)
+library(readxl)
+library(readr)
+library(jsonlite)
+```
+
+## Pseudo-code
+
+```{r}
+# Pseudo-code - deuxième version
+# Output : dataframe avec (#département * #culture * #année) lignes
+#          et les colonnes suivantes : département, 
+#                                      culture, 
+#                                      année, 
+#                                      région,
+#                                      surface, 
+#                                      production, 
+#                                      rendement, 
+#                                      variables climatiques moyennées
+#                                      pourcentage de bio
+#                                      taille moyenne des parcelles
+#                                      nombre de parcelles
+# 
+# 
+#     
+# Pour chaque année :
+#   Pour chaque région :
+#     Load les données RPG pour la région,
+#     Pour les départements de la région :
+#       Extraire les parcelles du département
+#       Pour chaque culture :
+#          Extraire les parcelles de la culture
+#          Calculer le centroid de ces parcelles
+#          Pour chaque variable climatique var_clim :
+#             Pour chaque jour j :
+#                Load les données AgERA5 du jour j,
+#                Pour chaque parcelle : (jointure)
+#                   Récupérer la var_clim la plus proche du centroid
+#                Faire la moyenne des var_clim pour le jour j
+#             Mettre la liste des moyennes journalières de var_clim dans la 
+#             - ligne associée à la culture/année/dépt
+#
+# Load les données SAA 2010-2022
+# Nettoyer les données SAA :
+#     - garder lignes pour cultures choisies, dépt choisies, années choisies
+# Jointure des données SAA avec le dataset obtenu
+```
+
+## Global variables
+
+Les variables globales sont les suivantes :
+
+-   `list_dept` : la liste des départements sous forme de `character` de taille 3
+-   `list_cult` : la liste des cultures au format de la colonne `LIB_CODE` du SAA
+-   `list_annee` : la liste des années sous forme de `numeric`
+-   `list_var_clim` : la liste des variables climatiques
+-   `corres_cult` : pour faire le lien entre RPG et SAA
+-   `list_region` : liste des régions selon la nomenclature du RPG
+-   `crs193` et `wgs84` : pour la conversion des coordonnées
+-   `departements` : une base qui contient les départements et leur polygone, permet d'attribuer les parcelles aux bons départements.
+-   `corresp_var_clim` : pour faire le lien entre Copernicus et les noms que nous avons choisi
+-   `leap_year` : fonction pour déterminer si une année est bissextile
+
+#### list_dept
+
+```{r}
+# transform_str <- function(x) {
+#   chr_x = as.character(x)
+#   if (nchar(chr_x) == 1) {return(paste("00", chr_x, sep=""))}
+#   if (nchar(chr_x) == 2) {return(paste("0", chr_x, sep=""))}
+#   else {return(chr_x)}
+# }
+
+transform_str <- function(x) {
+  chr_x = as.character(x)
+  ifelse(nchar(chr_x) == 1, paste("00", chr_x, sep = ""),
+         ifelse(nchar(chr_x) == 2, paste("0", chr_x, sep = ""), chr_x))
+}
+
+transform_small <- function(x) {
+  return(substr(x, 2, 3))
+}
+
+list_dept = seq(1, 95)
+list_dept = lapply(list_dept, transform_str)
+list_dept = append(list_dept, list("02B"), 20)
+list_dept[[20]] <- "02A"
+```
+
+```{r}
+#list_dept
+```
+
+
+#### list_region
+
+```{r}
+list_region = c(11, 24, 27, 28, 32, 44, 52, 53, 75, 76, 84, 93, 94) #Convention de numérotation du RPG
+```
+
+
+#### list_cult
+
+```{r}
+list_cult = c("01 - Blé tendre d'hiver et épeautre", "15 - Maïs grain non irrigué") 
+```
+
+#### list_annee
+
+```{r}
+list_annee = seq(2010, 2022)
+#print(list_annee)
+```
+
+#### list_var_clim
+
+```{r}
+list_var_clim = list("temperature_moyenne24h", "precipitation_somme24h", "radiation_somme24h")
+
+#str_split("temperature_moyenne24h", "_")[[1]]
+# var_clim_split = str_split("temperature_moyenne24h", "_")[[1]]
+# var_clim_grandeur = var_clim_split[[1]]
+# var_clim_aggreg = var_clim_split[[2]]
+# paste(var_clim_grandeur, "/", var_clim_aggreg, "/", 2000, sep="")
+```
+
+#### corres_cult
+
+
+```{r}
+#read_csv2("../data/REF_CULTURES_2021.csv")
+
+dict_SAA_to_RPG = list("01 - Blé tendre d'hiver et épeautre" = c("BTH", "BH"),
+                       "14 - Maïs grain irrigué" = c("MA", "MIS"),
+                       "15 - Maïs grain non irrigué" = c("MA", "MIS")
+                         )
+dict_RPG_to_SAA = list("BTH" = "01 - Blé tendre d'hiver et épeautre", 
+                       "BH" = "01 - Blé tendre d'hiver et épeautre",
+                       "MA" = c("14 - Maïs grain irrigué", "15 - Maïs grain non irrigué"),
+                       "MIS" = c("14 - Maïs grain irrigué", "15 - Maïs grain non irrigué")
+                       )
+```
+
+
+#### Fonction bissextile
+
+```{r}
+leap_year <- function(year) {
+  return(ifelse((year %%4 == 0 & year %%100 != 0) | year %%400 == 0, TRUE, FALSE))
+}
+```
+
+#### Variables gloables géographiques
+
+```{r}
+crs193 <- "+proj=lcc +lat_1=49 +lat_2=44 +lat_0=46.5 +lon_0=3 +x_0=700000 +y_0=6600000 +ellps=GRS80 +units=m +no_defs"
+wgs84 <- "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
+
+
+```
+
+####
+
+```{r}
+# Charger les données géographiques des départements
+departements <- st_read("../data/departement_contour/georef-france-departement-millesime.shp")
+
+# Convertir les coordonnées en Lambert
+departements <- st_transform(departements, "+init=epsg:2154") #4326
+
+# remove_around <- function(x) {
+#   return(substr(x, 3, nchar(x) - 2))
+# }
+
+departements$reg_code <- as.character(substr(departements$reg_code, 3, nchar(departements$reg_code) - 2))
+departements$dep_code <- as.character(substr(departements$dep_code, 3, nchar(departements$dep_code) - 2))
+```
+```{r}
+#departements
+#[departements$reg_code == list(53),]
+departements$dep_code
+```
+#### variable climatique to name in .nc
+
+```{r}
+corresp_var_clim = list("temperature_moyenne24h" = "Temperature_Air_2m_Mean_24h", "precipitation_somme24h" = "Precipitation_Flux", "radiation_somme24h" = "Solar_Radiation_Flux")
+```
+
+
+## Merging
+
+
+```{r}
+merge_3 <- function(annee, culture, dept, var_clim, donnee_RPG, verbose=FALSE) {
+  var_clim_split = str_split(var_clim, "_")[[1]]
+  var_clim_grandeur = var_clim_split[[1]]
+  var_clim_aggreg = var_clim_split[[2]]
+  tab_var_clim = array(0, 365 + leap_year(annee))
+  for (jour in seq(1, 365 + leap_year(annee))) {
+    #if (verbose) {print(jour)}
+    date_current = as.Date(paste(annee, "-01-01", sep=""), format = "%Y-%m-%d") + jour - 1
+    path_agera5 = paste("../data/copernicus_propre/", 
+                        var_clim_grandeur, "/",
+                        var_clim_aggreg, "/",
+                        annee, "/",
+                        format(date_current, "%Y%m%d"),
+                        ".nc",
+                        sep=""
+                       )
+    nc_jour <- nc_open(path_agera5)
+    array_lon <- ncvar_get(nc_jour, "lon")
+    nlon <- dim(array_lon)
+    array_lat <- ncvar_get(nc_jour, "lat")
+    nlat <- dim(array_lat)
+    value <- ncvar_get(nc_jour, corresp_var_clim[[var_clim]])
+    
+    nc_close(nc_jour)
+    
+    lat = array(0, dim=(nlon*nlat))
+    i <- 0
+    for (elt_lat in array_lat) {
+      for (elt_lon in array_lon) {
+        i <- i + 1
+        lat[i] <- elt_lat
+      }
+    }
+    
+    lon = array(array_lon, dim=(nlon*nlat))
+    value = as.vector(value)
+    
+    value_tibble = as_tibble(cbind(lon, lat, value))
+    value_tibble$lat <- as.integer(round(value_tibble$lat*10)) #On transforme les lat/lon 
+    value_tibble$lon <- as.integer(round(value_tibble$lon*10)) #en entier pour join
+    #print(donnee_RPG)
+    #print(value_tibble)
+    coper_rpg_joined_jour = inner_join(value_tibble, donnee_RPG, by=c("lat", "lon")) #inner_join on the column in common
+    #parcelles de l'année, culture, dept avec les colonnes suivantes :
+    #lat, lon, value var clim, id_parcel, surface, code_culture, culture D1, culture D2
+    #Seul nous intéresse : la moyenne de la variable climatique ici
+    #print(coper_rpg_joined_jour)
+    valeur_moyenne = mean(coper_rpg_joined_jour$value, na.rm=TRUE) #Attention s'il y a des NA ici
+    tab_var_clim[jour] <- valeur_moyenne
+  }
+  return(tab_var_clim)
+}
+```
+
+
+```{r}
+# return un dataframe avec 
+merge_2 <- function(annee, culture, dept, list_var_clim, donnee_RPG, verbose=FALSE) {
+  list_array_var_clim = list()
+  for (var_clim in list_var_clim) {
+    if (verbose) {print(var_clim)}
+    tab_var_clim <- merge_3(annee, culture, dept, var_clim, donnee_RPG, verbose=verbose)
+    list_array_var_clim[[length(list_array_var_clim) + 1]] <- tab_var_clim
+  }
+  return(list_array_var_clim)
+}
+```
+
+```{r}
+merge <- function(list_annee, list_cult, list_dept, list_region, list_var_clim, verbose=FALSE) {
+  if (verbose) {print("Defining the variables")}
+  #Keep only the departement which regions are in list_region
+  list_dept_real = list()
+  list_dept_real_count = 0
+  for (dept in list_dept) {
+    #print(dept)
+    if (departements[departements$dep_code == transform_small(dept), ]$reg_code[[1]] %in% list_region) {
+      list_dept_real_count <- list_dept_real_count + 1
+      list_dept_real[[list_dept_real_count]] <- dept
+    }
+  }
+  list_dept = list_dept_real
+  if (verbose) {print("Liste des départements effectivement traités :")
+    print(as.character(list_dept))
+    }
+  
+  n_annee <- length(list_annee)
+  n_cult <- length(list_cult)
+  n_dept <- length(list_dept)
+  n_region <- length(list_region)
+  n_var_clim <- length(list_var_clim)
+  n_row <- n_annee*n_cult*n_dept
+  array_annee <- array(0, n_row)
+  array_cult <- array("", n_row)
+  array_dept <- array("", n_row)
+  array_mean_surface <- array(0, n_row) ##### Si parcelles #####
+  array_median_surface <- array(0, n_row) ##### Si parcelles #####
+  array_var_surface <- array(0, n_row) ##### Si parcelles #####
+  
+  names_list <- list_var_clim
+  # Create a list of empty lists indexed with names
+  data_var_clim <- lapply(setNames(replicate(length(names_list), list(), simplify = FALSE), names_list), function(x) list())
+  
+  if (verbose) {print("Beginning of the big loop")}
+  if (verbose) {print("======================================================")}
+  row_count = 0
+  for (annee in list_annee) {
+    if (verbose) {print(annee)}
+    for (region in list_region) {
+      path = paste("../data/RPG/",
+                   annee, "/",
+                   region, "/",
+                   "PARCELLES_GRAPHIQUES.shp",
+                   sep="")
+      donnee_RPG <- st_read(path)
+      donnee_RPG$geometry <- st_centroid(donnee_RPG$geometry)
+      
+      departements2 <- departements %>%
+        dplyr::select(dep_code)
+      # Effectuer une jointure spatiale basée sur la localisation pour déterminer à quel département appartient chaque parcelle
+      donnee_RPG <- st_join(donnee_RPG, departements2, join = st_intersects)
+      
+      #changer le type vers celui de la bibliothèque sp pour pouvoir faire le chgt de système de coos
+      donnee_RPG <- as(donnee_RPG, "Spatial") 
+      
+      #transformer les coordonnées du format Lambert93 vers lon/lat
+      donnee_RPG <- spTransform(donnee_RPG, wgs84) 
+      donnee_RPG <- as_tibble(donnee_RPG)
+      donnee_RPG <- rename(donnee_RPG, lon = coords.x1)
+      donnee_RPG <- rename(donnee_RPG, lat = coords.x2)
+      donnee_RPG$lon <- round(donnee_RPG$lon*10, digits=0)
+      donnee_RPG$lat <- round(donnee_RPG$lat*10, digits=0)
+      donnee_RPG$lon <- as.integer(donnee_RPG$lon)
+      donnee_RPG$lat <- as.integer(donnee_RPG$lat)
+      
+      #Get the list of dept we want to process in the current region
+      list_dept_reg <- departements[departements$reg_code == region & transform_str(departements$dep_code) %in% list_dept, ]$dep_code
+      #Transform to the format readable by the SAA
+      list_dept_reg <- lapply(list_dept_reg, transform_str)
+      
+      print(list_dept_reg)
+      
+      for (dept in list_dept_reg) {
+        if (verbose) {print(dept)}
+        #print(donnee_RPG)
+        donnee_RPG_dept <- donnee_RPG[transform_str(donnee_RPG$dep_code) == dept, ]
+        #print(donnee_RPG_dept)
+        for (culture in list_cult) {
+          if (verbose) {print(culture)}
+          donnee_RPG_culture <- donnee_RPG_dept[donnee_RPG_dept$CODE_CULTU %in% dict_SAA_to_RPG[[culture]], ]
+          #print(donnee_RPG_culture)
+          row_count <- row_count + 1
+          list_array_var_clim <- merge_2(annee, culture, dept, list_var_clim, donnee_RPG_culture, verbose=verbose)
+          array_annee[row_count] <- annee
+          array_cult[row_count] <- culture
+          array_dept[row_count] <- dept
+          
+          array_mean_surface[row_count] <- mean(donnee_RPG_culture$SURF_PARC) ##### Si parcelles #####
+          array_median_surface[row_count] <- median(donnee_RPG_culture$SURF_PARC) ##### Si parcelles #####
+          array_var_surface[row_count] <- var(donnee_RPG_culture$SURF_PARC) ##### Si parcelles #####
+          
+          # print("list_array_var_clim")
+          # print(list_array_var_clim)
+          # print("array_annee")
+          # print(array_annee)
+          # print("array_cult")
+          # print(array_cult)
+          # print("array_dept")
+          # print(array_dept)
+          for (i in seq(1, length(list_var_clim))) {
+            var_clim <- list_var_clim[[i]]
+            data_var_clim[[var_clim]][[row_count]] <- list_array_var_clim[[i]]
+          }
+          rm(donnee_RPG_culture)
+        }
+        rm(donnee_RPG_dept)
+      }
+      rm(donnee_RPG)
+    }
+  }
+  
+  if (verbose) {print("==========================================================")}
+  if (verbose) {print("Creating the tibble")}
+  #tibble_merged <- as_tibble(cbind(array_annee, array_cult, array_dept, data_var_clim))
+  # print(array_dept)
+  # print(class(array_dept))
+  tibble_merged <- tibble(
+  Annee = array_annee,
+  Culture = array_cult,
+  Departement = array_dept,
+  Mean_surface_parcelles = array_mean_surface,
+  Median_surface_parcelles = array_median_surface,
+  Variance_surface_parcelles = array_var_surface
+  )
+  
+  for (col_name in names(data_var_clim)) {
+    tibble_merged[[col_name]] <- data_var_clim[[col_name]]
+  }
+  
+  duplicated_rows <- tibble_merged[tibble_merged$Culture == "15 - Maïs grain non irrigué", ]
+
+  # Modifier la valeur dans la colonne "Culture" des lignes dupliquées
+  duplicated_rows$Culture <- "14 - Maïs grain irrigué"
+  
+  # Concaténer les données originales avec les lignes dupliquées modifiées
+  tibble_merged <- rbind(tibble_merged, duplicated_rows)
+  
+  #print(tibble_merged)
+  
+  ### Merge avec le SAA
+  if (verbose) {print("Merging with the SAA")}
+  saa = read_excel("../data/statistiques_agricoles_annuelles/SAA_2010-2022_définitives_donnees_departementales.xlsx", sheet="COP", skip = 5)
+  #saa$Departement <- substr(saa$LIB_DEP, 1, 3)
+  
+  # Création de la nouvelle base de données vide
+  saa_new <- data.frame(LIB_DEP = character(),
+                              Annee = integer(),
+                              Culture = character(),
+                              rend = numeric(),
+                              surf = numeric(),
+                              prod = numeric())
+  
+  # Itération à travers les colonnes de data_COP pour remplir la nouvelle base de données
+  for (i in 1:length(saa)) {
+    # Sélection des colonnes correspondant à une année
+    if (grepl("^SURF_\\d{4}$", names(saa)[i])) {
+      année <- substr(names(saa)[i], 6, 9)
+      saa_new <- bind_rows(saa_new,
+                                 data.frame(LIB_DEP = saa$LIB_DEP,
+                                            Annee = as.integer(année),
+                                            Culture = saa$LIB_CODE,
+                                            rend = saa[[paste0("REND_", année)]],
+                                            surf = saa[[paste0("SURF_", année)]],
+                                            prod = saa[[paste0("PROD_", année)]]))
+    }
+  }
+  #print(saa_new)
+  saa_new$Departement <- substr(saa_new$LIB_DEP, 1, 3)
+  print("Last join")
+  merged_result <- saa_new %>%
+  inner_join(tibble_merged, by = c("Departement", "Annee", "Culture"))
+  
+  return(merged_result)
+}
+```
+
+```{r}
+for (region in list_region) {
+  print(region)
+  for (annee in list(2015)) {
+    print(annee)
+    merged_object <- merge(list(annee), list_cult, list_dept, list(region), list("temperature_moyenne24h", "precipitation_somme24h", "radiation_somme24h"), verbose=TRUE)
+    for (var_clim in list("temperature_moyenne24h", "precipitation_somme24h", "radiation_somme24h")) {
+      merged_object[[var_clim]] <- sapply(merged_object[[var_clim]], toString)
+    }
+    write.table(merged_object, paste("../data_merged_2/merged_tibble_", annee, "_", region, ".csv", sep=""), sep=";")
+  }
+}
+```
+
+```{r}
+for (region in c(84, 93, 94)) { #list_region
+  print(region)
+  for (annee in list(2017)) {
+    print(annee)
+    merged_object <- merge(list(annee), list_cult, list_dept, list(region), list("temperature_moyenne24h", "precipitation_somme24h", "radiation_somme24h"), verbose=TRUE)
+    for (var_clim in list("temperature_moyenne24h", "precipitation_somme24h", "radiation_somme24h")) {
+      merged_object[[var_clim]] <- sapply(merged_object[[var_clim]], toString)
+    }
+    write.table(merged_object, paste("../data_merged/merged_tibble_", annee, "_", region, ".csv", sep=""), sep=";")
+  }
+}
+```
+
+
+## Archives et test
+
+```{r}
+#write.csv(merged_object, paste("../data_merged/testtest_merged_tibble_", annee, "_", region, ".csv", sep=""), sep=";")
+write.table(merged_object, paste0("../data_merged/aaaaaaaaaaaaamerged_tibble_", annee, "_", region, ".csv"), sep=";")
+```
+
+```{r}
+df <- merged_object
+
+# Function to determine if a year is leap
+is_leap_year <- function(year) {
+  year %% 4 == 0 & (year %% 100 != 0 | year %% 400 == 0)
+}
+
+# Add leap year column
+df <- df %>%
+  mutate(is_leap = is_leap_year(Annee))
+
+# Expand list column into separate columns
+df_expanded <- df %>%
+  mutate(temperature_moyenne24h = ifelse(nchar(temperature_moyenne24h) == 365, c(temperature_moyenne24h, NA), temperature_moyenne24h)) %>%
+  separate(col = temperature_moyenne24h,
+           into = paste0("value_", 1:366),
+           sep = ",",
+           extra = "merge")
+
+# Print the result
+print(df_expanded)
+```
+
+
+```{r}
+for (annee in list(2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022)) {
+  merged_object <- merge(list(annee), list_cult, list_dept, list_region, list_var_clim, verbose=TRUE)
+  write_csv(merged_object, paste("merged_object_", annee, ".csv", sep=""))
+}
+
+```
+
+```{r}
+install.packages("readr")
+library(readr)
+
+# Assuming 'my_data' is your tibble/data frame
+# Replace 'my_data' with the name of your tibble/data frame
+write_csv(merged_object, "merged_object.csv")
+```
+
+```{r}
+paste("é", 2, "Aa", sep="")
+```
+
+
+```{r}
+print(head(merged_object$temperature_moyenne24h))
+```
+
+
+
+## TESTS
+
+```{r}
+path = "../data/registre_parcellaire_graphique_region/RPG_2-0__SHP_LAMB93_R53_2022-01-01/RPG/1_DONNEES_LIVRAISON_2023-08-01/RPG_2-0_SHP_LAMB93_R53-2022/PARCELLES_GRAPHIQUES.shp"
+donnee_RPG <- st_read(path)
+
+donnee_RPG$geometry <- st_centroid(donnee_RPG$geometry)
+  
+# Charger les données géographiques des départements
+departements2 <- st_read("../data/departement_contour/georef-france-departement-millesime.shp")
+
+departements <- departements2 %>%
+  dplyr::select(dep_code)
+
+# Convertir les coordonnées en Lambert
+departements <- st_transform(departements, "+init=epsg:2154")
+
+# Effectuer une jointure spatiale basée sur la localisation pour déterminer à quel département appartient chaque parcelle
+rpg_departements <- st_join(donnee_RPG, departements, join = st_intersects)
+
+# Vérifier les premières lignes du résultat de la jointure spatiale
+head(rpg_departements)
+
+```
+```{r}
+departements[departements$dep_name_up == "HAUTE CORSE",]
+```
+
+
+```{r}
+tab_var_clim = array(0, 365 + leap_year(2015))
+list_array_var_clim = list()
+list_array_var_clim[[length(list_array_var_clim) + 1]] <- tab_var_clim
+
+array_var_clim <- matrix(0, nrow=20, ncol=3)
+row_count = 1
+for (i in seq(1, length(list_var_clim))) {
+            array_var_clim[row_count, i] <- list_array_var_clim[[i]] }
+```
+
+```{r}
+names_list <- list_var_clim
+
+# Create a list of empty lists indexed with names
+empty_lists <- lapply(setNames(replicate(length(names_list), list(), simplify = FALSE), names_list), function(x) list())
+
+# Display the result
+print(empty_lists)
+
+for
+empty_lists$temperature_moyenne24h[10] <- array(0)
+
+print(empty_lists)
+```
+
+
+```{r}
+array_annee <- array(c(2010, 2010, 2011))
+array_cult <- array(c("blé", "orge", "blé"))
+array_dept <- array(c(29, 29, 29))
+data_var_clim <- list()
+
+data_var_clim$temperature <- list(array(c(2,4,5)), array(c(3,5,9)), array(c(4,4,8)))
+
+tmp <- list(annee = array_annee,
+            culture = array_cult,
+            departement = array_dept)
+for (name in names(data_var_clim)) {
+  value <- data_var_clim[[name]]
+  
+}
+
+my_tibble <- tibble(
+  Annee = array_annee,
+  Culture = array_cult,
+  Departement = array_dept,
+)
+
+my_tibble <- bind_cols(my_tibble, map(data_var_clim, as_tibble))
+
+```
+
+```{r}
+my_tibble
+```
+
+```{r}
+library(tibble)
+library(purrr)
+
+# Given data
+array_annee <- array(c(2010, 2010, 2011))
+array_cult <- array(c("blé", "orge", "blé"))
+array_dept <- array(c(29, 29, 29))
+data_var_clim <- list()
+
+data_var_clim$temperature <- list(array(c(2, 4, 5)), array(c(3, 5, 9)), array(c(4, 4, 8)))
+data_var_clim$humidity <- list(array(c(50, 60, 70)), array(c(55, 65, 75)), array(c(60, 70, 80)))
+
+# Combine all lists into a tibble
+my_tibble <- tibble(
+  Annee = array_annee,
+  Culture = array_cult,
+  Departement = array_dept  # Use purrr::map to convert each feature to a tibble
+)
+
+for (col_name in names(data_var_clim)) {
+  my_tibble[[col_name]] <- data_var_clim[[col_name]]
+}
+
+# Print the tibble
+print(my_tibble)
+```
+
+```{r}
+my_tibble$clim_data
+```
+

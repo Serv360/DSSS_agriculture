@@ -12,7 +12,7 @@ library(ggdist)
 library(sf)
 library(tidyverse)
 
-#a changer pour lolo l'asticot
+#a changer par le lien vers le cloned repository
 setwd("C:/Users/Serv3/Desktop/DSSS project/DSSS agriculture/DSSS_agriculture")
 
 

@@ -12,14 +12,21 @@ library(tidyverse)
 library(cowplot)
 ```
 
+```{r}
+#setwd("")
+
+
+chemin <- "C:/Users/Serv3/Desktop/DSSS project/DSSS agriculture/DSSS_agriculture/2_analyse/data/"
+```
+
 
 
 ```{r}
-chemin <- "C:/Users/Serv3/Desktop/DSSS project/data_merged/"
+#chemin <- "C:/Users/Serv3/Desktop/DSSS project/DSSS agriculture"
 
 base <- list()
 
-for (annee in 2017:2022) {
+for (annee in c(2010, 2011, 2012, 2013, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022)) {
   donnees_annee <- list()
   for (region in c(11,24,27,28,32,44,52,53,75,76,84,93,94)) {
     chemin_fichier <- paste0(chemin, "merged_tibble_", annee, "_", region, ".csv")
@@ -79,7 +86,7 @@ base$radiation_somme24h <- lapply(strsplit(base$radiation_somme24h, ", "), as.nu
 ```{r}
 base$temperature_moyenne <- sapply(base$temperature_moyenne24h, function(x) {
   if(length(x) > 0) {
-    mean(x, na.rm = TRUE)
+    mean(x, na.rm = TRUE) - 273.15
   } else {
     NA
   }
@@ -191,10 +198,26 @@ p2 <- ggplot(data_wheat, aes(x = factor(Annee), y = precipitation_somme_moyenne)
 plot_grid(p1, p2, nrow = 2, align = "v")
 ```
 
-
+#### Graphique pour la Figure 1
 
 ```{r}
+#########################################################################
+################### Graphique pour la Figure 1 ##########################
+#########################################################################
+
 data_wheat <- base[base$Culture == "01 - Blé tendre d'hiver et épeautre",]
+
+# Create a dataframe for storing temperature averages per year
+prec_data <- precipitation_moyenne_par_annee
+
+# Merge wheat data with temperature data
+data_wheat2 <- merge(data_wheat, prec_data, by = "Annee")
+
+# Create a dataframe for storing temperature averages per year
+temp_data <- temp_moyenne_par_annee
+
+# Merge wheat data with temperature data
+data_wheat3 <- merge(data_wheat, temp_data, by = "Annee")
 
 # Create a dataframe for storing temperature averages per year
 radi_data <- radiation_moyenne_par_annee
@@ -206,18 +229,30 @@ data_wheat <- merge(data_wheat, radi_data, by = "Annee")
 p1 <- ggplot(data_wheat, aes(x = factor(Annee))) +
   geom_boxplot(aes(y = rend), fill = "skyblue") +
   geom_jitter(aes(y = rend), width = 0.2, alpha = 0.5, color = "red") +
-  scale_y_continuous(name = "Rendement (tonnes par hectare)", limits = c(0, 110)) +
-  labs(title = "Distribution des rendements du blé par année en France",
+  scale_y_continuous(name = "Rendement (tonnes/ha)", limits = c(0, 110)) +
+  labs(title = "Distribution des rendements",
        x = "Année")
 
 p2 <- ggplot(data_wheat, aes(x = factor(Annee), y = radiation_somme_moyenne)) +
   geom_point(color = "blue", size = 3) +
   scale_y_continuous(name = "Radiation moyenne (J/m)") +
-  labs(title = "Moyenne des sommes de radiations sur les départements en France par année",
+  labs(title = "Radiations quotidiennes",
+       x = "Année")
+
+p3 <- ggplot(data_wheat2, aes(x = factor(Annee), y = precipitation_somme_moyenne)) +
+  geom_point(color = "blue", size = 3) +
+  scale_y_continuous(name = "Précipitation moyenne (mm)") +
+  labs(title = "Précipitations quotidiennes",
+       x = "Année")
+
+p4 <- ggplot(data_wheat3, aes(x = factor(Annee), y = temperature_moyenne_moyenne)) +
+  geom_point(color = "blue", size = 3) +
+  scale_y_continuous(name = "Température moyenne (°C)") +
+  labs(title = "Températures moyennes quotidiennes",
        x = "Année")
 
 # Plot the two plots on top of each other
-plot_grid(p1, p2, nrow = 2, align = "v")
+plot_grid(p1, p2, p4, p3, nrow = 4, align = "v")
 ```
 
 
