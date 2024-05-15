@@ -9,9 +9,9 @@ Le projet est organisé ainsi en quatre dossiers.
   - Deux .Rmd pour faire la jointure 2010 - 2022 simple ou 2015 - 2022 avec moyenne/médiane/variance surfaces parcelles.
 2. Analyse
   - Deux dossiers avec les données propres obtenues grâce aux codes précédents : "data" (2010 - 2022) et "data_adaptation" (2015 - 2022).
-  - Des scripts (setpwd à changer) pour :
+  - Des scripts (setpwd à changer pour le téléchargement des données) pour :
     - les statistiques descriptives ("statistiques descriptives.Rmd") : permet d'obtenir la Figure 1.
-    - la modélisation ("rf Blé.R" et "rf Mais.R") : permet d'obtenir les Figures 3 et 4 et les tables.
+    - la modélisation ("rf Blé.R" et "rf Mais.R") : permet d'obtenir les modèles utilisés et par conséquent les Figures 3 et 4 et les tables.
     - étudier l'adaptation, principalement en terme de surface et de surfaces de parcelles (les trois autres fichiers) : permet d'obtenir les Figures 5 et 7 et d'autres Figures dans la vidéo.
 3. Plots
   - Les images présentes dans le rendu et dans la vidéo.
